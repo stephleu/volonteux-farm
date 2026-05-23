@@ -6,24 +6,28 @@ export default function Parametres() {
   const [onglet, setOnglet] = useState('legumes')
   const [legumes, setLegumes] = useState([])
   const [familles, setFamilles] = useState([])
+  const [blocs, setBlocs] = useState([])
   const [selected, setSelected] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => { fetchData() }, [])
 
   async function fetchData() {
-    const [{ data: l }, { data: f }] = await Promise.all([
+    const [{ data: l }, { data: f }, { data: b }] = await Promise.all([
       supabase.from('legumes').select('*, familles(nom, couleur)').order('nom'),
       supabase.from('familles').select('*').order('nom'),
+      supabase.from('blocs').select('*').order('nom'),
     ])
     setLegumes(l || [])
     setFamilles(f || [])
+    setBlocs(b || [])
     setLoading(false)
   }
 
   const tabs = [
     { id: 'legumes', label: 'Fiches légumes' },
     { id: 'familles', label: 'Familles' },
+    { id: 'annees', label: 'Gestion années' },
     { id: 'blocs', label: 'Blocs & serres' },
     { id: 'stocks', label: 'Stocks & commandes' },
   ]
@@ -90,6 +94,8 @@ export default function Parametres() {
           ))}
         </div>
       )}
+
+      {onglet === 'annees' && <GestionAnnees blocs={blocs} />}
 
       {onglet === 'blocs' && (
         <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: 16, fontSize: 13, color: '#6b7280' }}>
@@ -287,6 +293,192 @@ function FicheLegume({ legume, familles, onSave }) {
             <div key={v.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', border: '1px solid #f3f4f6', borderRadius: 6, marginBottom: 6 }}>
               <span style={{ fontSize: 13, color: '#111' }}>{v.nom}</span>
               <button onClick={() => supprimerVariete(v.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 12 }}>Supprimer</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function GestionAnnees({ blocs }) {
+  const [anneeSource, setAnneeSource] = useState(2026)
+  const [anneeDestination, setAnneeDestination] = useState(2027)
+  const [loading, setLoading] = useState(false)
+  const [messages, setMessages] = useState([])
+  const [rotations, setRotations] = useState([])
+
+  useEffect(() => { fetchRotations() }, [])
+
+  async function fetchRotations() {
+    const { data } = await supabase
+      .from('rotations_planifiees')
+      .select('*, blocs(nom, id, nombre_planches)')
+      .order('annee')
+    setRotations(data || [])
+  }
+
+  async function dupliquerAnneePleinChamp() {
+    setLoading(true)
+    setMessages([])
+    const msgs = []
+
+    const rotSource = rotations.filter(r => r.annee === anneeSource)
+    const rotDest = rotations.filter(r => r.annee === anneeDestination)
+    const blocsChamp = blocs.filter(b => b.type !== 'serre')
+    let totalDupliquees = 0
+
+    for (const blocDest of blocsChamp) {
+      const rotDstBloc = rotDest.find(r => r.bloc_id === blocDest.id)
+      if (!rotDstBloc) {
+        msgs.push({ type: 'warning', text: `Bloc ${blocDest.nom} — aucune rotation définie pour ${anneeDestination}` })
+        continue
+      }
+
+      const rotSrcBloc = rotSource.find(r => r.description === rotDstBloc.description)
+      if (!rotSrcBloc) {
+        msgs.push({ type: 'warning', text: `Bloc ${blocDest.nom} — impossible de trouver le bloc source pour "${rotDstBloc.description}"` })
+        continue
+      }
+
+      const blocSource = blocs.find(b => b.id === rotSrcBloc.bloc_id)
+      if (!blocSource) continue
+
+      if (blocDest.nombre_planches < blocSource.nombre_planches) {
+        msgs.push({ type: 'warning', text: `Bloc ${blocDest.nom} a ${blocDest.nombre_planches} planches vs ${blocSource.nombre_planches} en source (Bloc ${blocSource.nom}) — certaines cultures peuvent ne pas rentrer` })
+      }
+
+      const { data: planches } = await supabase
+        .from('planches')
+        .select('*')
+        .eq('bloc_id', rotSrcBloc.bloc_id)
+
+      const { data: cultures } = await supabase
+        .from('cultures')
+        .select('*, series(*)')
+        .in('planche_id', (planches || []).map(p => p.id))
+        .eq('annee', anneeSource)
+        .eq('type', 'prevu')
+
+      const seriesUniques = [...new Map((cultures || []).map(c => [c.serie_id, c.series])).entries()]
+        .map(([, s]) => s).filter(Boolean)
+
+      for (const serie of seriesUniques) {
+        await supabase.from('series').insert({
+          legume_id: serie.legume_id,
+          variete_id: serie.variete_id || null,
+          nom: serie.nom,
+          fournisseur: serie.fournisseur,
+          type: serie.type,
+          longueur_metres: serie.longueur_metres,
+          semaine_plantation: serie.semaine_plantation,
+          nombre_plants: serie.nombre_plants,
+          annee: anneeDestination,
+          notes: serie.notes,
+        })
+        totalDupliquees++
+      }
+
+      msgs.push({ type: 'success', text: `Bloc ${blocDest.nom} ← Bloc ${blocSource.nom} : ${seriesUniques.length} séries dupliquées` })
+    }
+
+    msgs.push({ type: 'info', text: `Total : ${totalDupliquees} séries créées pour ${anneeDestination}` })
+    setMessages(msgs)
+    setLoading(false)
+  }
+
+  async function dupliquerAnneeSerres() {
+    setLoading(true)
+    setMessages([])
+    const msgs = []
+
+    const blocsSerre = blocs.filter(b => b.type === 'serre')
+    const { data: planches } = await supabase
+      .from('planches')
+      .select('*')
+      .in('bloc_id', blocsSerre.map(b => b.id))
+
+    const { data: cultures } = await supabase
+      .from('cultures')
+      .select('*, series(*)')
+      .in('planche_id', (planches || []).map(p => p.id))
+      .eq('annee', anneeSource)
+
+    const seriesUniques = [...new Map((cultures || []).map(c => [c.serie_id, c.series])).entries()]
+      .map(([, s]) => s).filter(Boolean)
+
+    for (const serie of seriesUniques) {
+      await supabase.from('series').insert({
+        legume_id: serie.legume_id,
+        variete_id: serie.variete_id || null,
+        nom: serie.nom,
+        fournisseur: serie.fournisseur,
+        type: serie.type,
+        longueur_metres: serie.longueur_metres,
+        semaine_plantation: serie.semaine_plantation,
+        nombre_plants: serie.nombre_plants,
+        annee: anneeDestination,
+        notes: serie.notes,
+      })
+    }
+
+    msgs.push({ type: 'success', text: `${seriesUniques.length} séries serre dupliquées pour ${anneeDestination} — à replacer manuellement` })
+    setMessages(msgs)
+    setLoading(false)
+  }
+
+  const annees = [2025, 2026, 2027, 2028, 2029, 2030]
+
+  return (
+    <div>
+      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: 20, marginBottom: 16 }}>
+        <div style={{ fontSize: 14, fontWeight: 500, color: '#111', marginBottom: 14 }}>Dupliquer une saison</div>
+
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20 }}>
+          <div>
+            <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>Année source</div>
+            <select value={anneeSource} onChange={e => setAnneeSource(parseInt(e.target.value))}
+              style={{ fontSize: 13, padding: '6px 10px', border: '1px solid #e5e7eb', borderRadius: 6 }}>
+              {annees.map(a => <option key={a} value={a}>{a}</option>)}
+            </select>
+          </div>
+          <div style={{ fontSize: 20, color: '#9ca3af', marginTop: 16 }}>→</div>
+          <div>
+            <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>Année destination</div>
+            <select value={anneeDestination} onChange={e => setAnneeDestination(parseInt(e.target.value))}
+              style={{ fontSize: 13, padding: '6px 10px', border: '1px solid #e5e7eb', borderRadius: 6 }}>
+              {annees.map(a => <option key={a} value={a}>{a}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 14, padding: '8px 12px', background: '#f9fafb', borderRadius: 6 }}>
+          La duplication plein champ utilise le planning de rotation pour déplacer les cultures vers les bons blocs.
+          La duplication serres copie toutes les séries à replacer manuellement.
+        </div>
+
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={dupliquerAnneePleinChamp} disabled={loading || anneeSource === anneeDestination}
+            style={{ padding: '8px 16px', fontSize: 13, border: 'none', borderRadius: 6, cursor: loading ? 'default' : 'pointer', background: '#1D9E75', color: '#fff', fontWeight: 500, opacity: loading ? 0.7 : 1 }}>
+            {loading ? 'En cours...' : 'Dupliquer plein champ'}
+          </button>
+          <button onClick={dupliquerAnneeSerres} disabled={loading || anneeSource === anneeDestination}
+            style={{ padding: '8px 16px', fontSize: 13, border: '1px solid #e5e7eb', borderRadius: 6, cursor: loading ? 'default' : 'pointer', background: '#fff', color: '#111', opacity: loading ? 0.7 : 1 }}>
+            {loading ? 'En cours...' : 'Dupliquer serres'}
+          </button>
+        </div>
+      </div>
+
+      {messages.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {messages.map((msg, i) => (
+            <div key={i} style={{
+              padding: '8px 12px', borderRadius: 6, fontSize: 12,
+              background: msg.type === 'success' ? '#f0fdf4' : msg.type === 'warning' ? '#fffbeb' : '#eff6ff',
+              border: `1px solid ${msg.type === 'success' ? '#86efac' : msg.type === 'warning' ? '#fcd34d' : '#bfdbfe'}`,
+              color: msg.type === 'success' ? '#166534' : msg.type === 'warning' ? '#92400e' : '#1e40af',
+            }}>
+              {msg.type === 'success' ? '✓' : msg.type === 'warning' ? '⚠' : 'ℹ'} {msg.text}
             </div>
           ))}
         </div>

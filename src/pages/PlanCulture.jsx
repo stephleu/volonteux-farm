@@ -16,8 +16,8 @@ export default function PlanCulture() {
     setLoading(false)
   }
 
-  const blocsChamp = blocs.filter(b => b.type !== 'serre')
-  const blocsSerre = blocs.filter(b => b.type === 'serre')
+const blocsChamp = blocs.filter(b => b.type !== 'serre').sort((a, b) => a.nom.localeCompare(b.nom))
+const blocsSerre = blocs.filter(b => b.type === 'serre').sort((a, b) => a.nom.localeCompare(b.nom))
   const blocsAffiches = vue === 'champ' ? blocsChamp : blocsSerre
 
   function toggleBloc(id) {

@@ -20,16 +20,17 @@ export default function Assolement() {
   const [modifCulture, setModifCulture] = useState(null)
   const [triSeries, setTriSeries] = useState('recent')
   const [propositionDebord, setPropositionDebord] = useState(null)
+  const [annee, setAnnee] = useState(2026)
   const refs = useRef({})
 
-  useEffect(() => { fetchData() }, [])
+ useEffect(() => { fetchData() }, [annee])
 
   async function fetchData() {
     const [{ data: b }, { data: p }, { data: s }, { data: c }] = await Promise.all([
       supabase.from('blocs').select('*').order('nom'),
       supabase.from('planches').select('*').order('numero'),
-      supabase.from('series').select('*, legumes(nom, familles(couleur), espacement_plants, rangs), varietes(nom)').order('created_at', { ascending: false }),
-      supabase.from('cultures').select('*, legumes(nom, familles(couleur)), varietes(nom)').order('created_at'),
+      supabase.from('series').select('*, legumes(nom, familles(couleur), espacement_plants, rangs), varietes(nom)').eq('annee', annee).order('created_at', { ascending: false }),
+supabase.from('cultures').select('*, legumes(nom, familles(couleur)), varietes(nom)').eq('annee', annee).order('created_at'),
     ])
     setBlocs(b || [])
     setPlanches(p || [])
@@ -172,7 +173,13 @@ export default function Assolement() {
       <div style={{ flex: 1, overflow: 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, position: 'sticky', top: 0, background: '#f3f4f6', padding: '10px 0', zIndex: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <h1 style={{ fontSize: 18, fontWeight: 500, color: '#111' }}>Assolement 2026</h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+  <h1 style={{ fontSize: 18, fontWeight: 500, color: '#111' }}>Assolement</h1>
+  <select value={annee} onChange={e => setAnnee(parseInt(e.target.value))}
+    style={{ fontSize: 13, padding: '5px 10px', border: '1px solid #e5e7eb', borderRadius: 6 }}>
+    {[2024, 2025, 2026, 2027, 2028].map(a => <option key={a} value={a}>{a}</option>)}
+  </select>
+</div>
             <div style={{ display: 'flex', border: '1px solid #e5e7eb', borderRadius: 6, overflow: 'hidden' }}>
               {['champ', 'serres'].map(v => (
                 <button key={v} onClick={() => setVue(v)} style={{ padding: '5px 12px', fontSize: 12, border: 'none', cursor: 'pointer', background: vue === v ? '#1D9E75' : '#f9fafb', color: vue === v ? '#fff' : '#6b7280' }}>

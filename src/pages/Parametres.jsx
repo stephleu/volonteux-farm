@@ -319,39 +319,31 @@ function GestionAnnees({ blocs }) {
   }
 
   async function dupliquerAnneePleinChamp() {
-    setLoading(true)
-    setMessages([])
-    const msgs = []
+  setLoading(true)
+  setMessages([])
+  const msgs = []
 
-    const rotSource = rotations.filter(r => r.annee === anneeSource)
-    const rotDest = rotations.filter(r => r.annee === anneeDestination)
-    const blocsChamp = blocs.filter(b => b.type !== 'serre')
-    let totalDupliquees = 0
+  const rotationCourte = ['A', 'B', 'C']
+  const rotationLongue = ['D', 'E', 'F', 'G', 'H']
+  let totalDupliquees = 0
 
-    for (const blocDest of blocsChamp) {
-      const rotDstBloc = rotDest.find(r => r.bloc_id === blocDest.id)
-      if (!rotDstBloc) {
-        msgs.push({ type: 'warning', text: `Bloc ${blocDest.nom} — aucune rotation définie pour ${anneeDestination}` })
-        continue
-      }
+  async function dupliquerGroupe(groupeBlocs) {
+    for (let i = 0; i < groupeBlocs.length; i++) {
+      const nomBlocDest = groupeBlocs[i]
+      const nomBlocSource = groupeBlocs[(i - 1 + groupeBlocs.length) % groupeBlocs.length]
 
-      const rotSrcBloc = rotSource.find(r => r.description === rotDstBloc.description)
-      if (!rotSrcBloc) {
-        msgs.push({ type: 'warning', text: `Bloc ${blocDest.nom} — impossible de trouver le bloc source pour "${rotDstBloc.description}"` })
-        continue
-      }
-
-      const blocSource = blocs.find(b => b.id === rotSrcBloc.bloc_id)
-      if (!blocSource) continue
+      const blocDest = blocs.find(b => b.nom === nomBlocDest)
+      const blocSource = blocs.find(b => b.nom === nomBlocSource)
+      if (!blocDest || !blocSource) continue
 
       if (blocDest.nombre_planches < blocSource.nombre_planches) {
-        msgs.push({ type: 'warning', text: `Bloc ${blocDest.nom} a ${blocDest.nombre_planches} planches vs ${blocSource.nombre_planches} en source (Bloc ${blocSource.nom}) — certaines cultures peuvent ne pas rentrer` })
+        msgs.push({ type: 'warning', text: `Bloc ${nomBlocDest} a ${blocDest.nombre_planches} planches vs ${blocSource.nombre_planches} en source (Bloc ${nomBlocSource}) — certaines cultures peuvent ne pas rentrer` })
       }
 
       const { data: planches } = await supabase
         .from('planches')
         .select('*')
-        .eq('bloc_id', rotSrcBloc.bloc_id)
+        .eq('bloc_id', blocSource.id)
 
       const { data: cultures } = await supabase
         .from('cultures')
@@ -379,13 +371,17 @@ function GestionAnnees({ blocs }) {
         totalDupliquees++
       }
 
-      msgs.push({ type: 'success', text: `Bloc ${blocDest.nom} ← Bloc ${blocSource.nom} : ${seriesUniques.length} séries dupliquées` })
+      msgs.push({ type: 'success', text: `Bloc ${nomBlocDest} ← Bloc ${nomBlocSource} : ${seriesUniques.length} séries dupliquées` })
     }
-
-    msgs.push({ type: 'info', text: `Total : ${totalDupliquees} séries créées pour ${anneeDestination}` })
-    setMessages(msgs)
-    setLoading(false)
   }
+
+  await dupliquerGroupe(rotationCourte)
+  await dupliquerGroupe(rotationLongue)
+
+  msgs.push({ type: 'info', text: `Total : ${totalDupliquees} séries créées pour ${anneeDestination}` })
+  setMessages(msgs)
+  setLoading(false)
+}
 
   async function dupliquerAnneeSerres() {
     setLoading(true)

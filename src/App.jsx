@@ -8,6 +8,7 @@ import Series from './pages/Series.jsx'
 import TravailSol from './pages/TravailSol.jsx'
 import Planning from './pages/Planning.jsx'
 import Historique from './pages/Historique.jsx'
+import Reel from './pages/Reel.jsx'
 import Parametres from './pages/Parametres.jsx'
 
 export default function App() {
@@ -24,7 +25,10 @@ export default function App() {
           <Route path="traitement" element={<Traitement />} />
           <Route path="sol" element={<TravailSol />} />
           <Route path="planning" element={<Planning />} />
-          <Route path="historique" element={<Historique />} />
+          <Route path="historique">
+  <Route index element={<Historique />} />
+  <Route path="reel" element={<Reel />} />
+</Route>
           <Route path="parametres" element={<Parametres />} />
         </Route>
       </Routes>

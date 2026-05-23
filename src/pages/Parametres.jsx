@@ -323,8 +323,8 @@ function GestionAnnees({ blocs }) {
   setMessages([])
   const msgs = []
 
-  const rotationCourte = ['A', 'B', 'C']
-  const rotationLongue = ['D', 'E', 'F', 'G', 'H']
+  const rotationCourte = ['A1', 'A2', 'B1', 'B2', 'B3', 'C']
+  const rotationLongue = ['D1', 'E', 'F1', 'F2', 'G', 'H1', 'H2']
   let totalDupliquees = 0
 
   async function dupliquerGroupe(groupeBlocs) {
@@ -337,7 +337,7 @@ function GestionAnnees({ blocs }) {
       if (!blocDest || !blocSource) continue
 
       if (blocDest.nombre_planches < blocSource.nombre_planches) {
-        msgs.push({ type: 'warning', text: `Bloc ${nomBlocDest} a ${blocDest.nombre_planches} planches vs ${blocSource.nombre_planches} en source (Bloc ${nomBlocSource}) — certaines cultures peuvent ne pas rentrer` })
+        msgs.push({ type: 'warning', text: `${nomBlocDest} a ${blocDest.nombre_planches} planches vs ${blocSource.nombre_planches} en source (${nomBlocSource}) — certaines cultures peuvent ne pas rentrer` })
       }
 
       const { data: planches } = await supabase
@@ -371,7 +371,7 @@ function GestionAnnees({ blocs }) {
         totalDupliquees++
       }
 
-      msgs.push({ type: 'success', text: `Bloc ${nomBlocDest} ← Bloc ${nomBlocSource} : ${seriesUniques.length} séries dupliquées` })
+      msgs.push({ type: 'success', text: `${nomBlocDest} ← ${nomBlocSource} : ${seriesUniques.length} séries dupliquées` })
     }
   }
 

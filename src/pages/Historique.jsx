@@ -2,23 +2,35 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
 const ANNEES = [2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030]
-const BLOCS_CHAMP = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I']
+
+const BLOCS_GROUPES = [
+  { parent: 'A', sousBlocs: ['A1', 'A2'], type: 'ete' },
+  { parent: 'B', sousBlocs: ['B1', 'B2', 'B3'], type: 'ete' },
+  { parent: 'C', sousBlocs: ['C'], type: 'ete' },
+  { parent: 'D', sousBlocs: ['D1', 'D2'], type: 'hiver' },
+  { parent: 'E', sousBlocs: ['E'], type: 'hiver' },
+  { parent: 'F', sousBlocs: ['F1', 'F2'], type: 'hiver' },
+  { parent: 'G', sousBlocs: ['G'], type: 'hiver' },
+  { parent: 'H', sousBlocs: ['H1', 'H2'], type: 'hiver' },
+  { parent: 'I', sousBlocs: ['I'], type: 'bonus' },
+]
 
 const COULEURS_ROTATION = {
-  'Ratatouille · Melon · Pastèque': '#E24B4A',
-  'Petit maraîchage · Salade': '#1D9E75',
-  'P. de t. primeur · Carotte · Racine': '#EF9F27',
-  'Poireaux · Oignon': '#378ADD',
+  'Ratatouille': '#E24B4A',
+  'Petit maraîchage': '#1D9E75',
+  'P. de t. primeur': '#EF9F27',
+  'Poireaux': '#378ADD',
   'P. de t. conserve': '#9B7FD4',
-  'Courge': '#E24B4A',
+  'Courge': '#E8873A',
   'Choux': '#8B5E8A',
-  'Carotte primeur · P. de t. douce': '#A0735A',
+  'Carotte primeur': '#A0735A',
   'Butternut': '#E24B4A',
 }
 
 function getCouleur(description) {
+  if (!description) return '#9ca3af'
   for (const [key, couleur] of Object.entries(COULEURS_ROTATION)) {
-    if (description?.includes(key.split(' · ')[0])) return couleur
+    if (description.includes(key)) return couleur
   }
   return '#9ca3af'
 }
@@ -26,7 +38,6 @@ function getCouleur(description) {
 export default function Historique() {
   const [blocs, setBlocs] = useState([])
   const [rotations, setRotations] = useState([])
-  const [cultures, setCultures] = useState([])
   const [loading, setLoading] = useState(true)
   const [vue, setVue] = useState('grille')
   const [anneeSelectionnee, setAnneeSelectionnee] = useState(2026)
@@ -34,21 +45,24 @@ export default function Historique() {
   useEffect(() => { fetchData() }, [])
 
   async function fetchData() {
-const [{ data: b }, { data: r }, { data: c }] = await Promise.all([
-  supabase.from('blocs').select('*').order('nom'),
-  supabase.from('rotations_planifiees').select('*, blocs(nom)').order('annee'),
-  supabase.from('cultures').select('*, legumes(nom, familles(nom, couleur)), planches(bloc_id)').order('annee'),
-])
-
+    const [{ data: b }, { data: r }] = await Promise.all([
+      supabase.from('blocs').select('*').order('nom'),
+      supabase.from('rotations_planifiees').select('*, blocs(nom)').order('annee'),
+    ])
     setBlocs(b || [])
     setRotations(r || [])
-    setCultures(c || [])
     setLoading(false)
   }
 
-function getRotation(nomBloc, annee) {
-  return rotations.find(r => r.blocs?.nom?.toLowerCase() === nomBloc.toLowerCase() && r.annee === annee)
-}
+  function getRotation(nomBloc, annee) {
+    return rotations.find(r => r.blocs?.nom === nomBloc && r.annee === annee)
+  }
+
+  function getRotationGroupe(groupe, annee) {
+    // Prend la rotation du premier sous-bloc non bonus
+    const sousBlocPrincipal = groupe.sousBlocs.find(sb => sb !== 'D2')
+    return getRotation(sousBlocPrincipal || groupe.sousBlocs[0], annee)
+  }
 
   return (
     <div>
@@ -74,9 +88,14 @@ function getRotation(nomBloc, annee) {
             <thead>
               <tr style={{ background: '#f9fafb' }}>
                 <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 500, color: '#111', borderBottom: '1px solid #e5e7eb', minWidth: 50 }}>Année</th>
-                {BLOCS_CHAMP.map(b => (
-                  <th key={b} style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 500, color: '#111', borderBottom: '1px solid #e5e7eb', minWidth: 90 }}>
-                    {b}
+                {BLOCS_GROUPES.map(g => (
+                  <th key={g.parent} style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 500, color: '#111', borderBottom: '1px solid #e5e7eb', minWidth: 100 }}>
+                    Bloc {g.parent}
+                    {g.sousBlocs.length > 1 && (
+                      <div style={{ fontSize: 10, color: '#9ca3af', fontWeight: 400 }}>
+                        {g.sousBlocs.join(', ')}
+                      </div>
+                    )}
                   </th>
                 ))}
               </tr>
@@ -87,11 +106,11 @@ function getRotation(nomBloc, annee) {
                   <td style={{ padding: '8px 14px', fontWeight: annee === 2026 ? 600 : 400, color: annee === 2026 ? '#1D9E75' : '#111', borderBottom: '1px solid #f3f4f6' }}>
                     {annee} {annee === 2026 && '←'}
                   </td>
-                  {BLOCS_CHAMP.map(nomBloc => {
-                    const rotation = getRotation(nomBloc, annee)
+                  {BLOCS_GROUPES.map(groupe => {
+                    const rotation = getRotationGroupe(groupe, annee)
                     const couleur = rotation ? getCouleur(rotation.description) : null
                     return (
-                      <td key={nomBloc} style={{ padding: '6px 4px', textAlign: 'center', borderBottom: '1px solid #f3f4f6', borderLeft: '1px solid #f3f4f6' }}>
+                      <td key={groupe.parent} style={{ padding: '6px 4px', textAlign: 'center', borderBottom: '1px solid #f3f4f6', borderLeft: '1px solid #f3f4f6' }}>
                         {rotation ? (
                           <div style={{ background: couleur + '22', border: `1px solid ${couleur}`, borderRadius: 4, padding: '3px 5px', fontSize: 10, color: '#111', lineHeight: 1.3 }}>
                             {rotation.description.split(' · ').map((d, i) => (
@@ -122,12 +141,17 @@ function getRotation(nomBloc, annee) {
             ))}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-            {BLOCS_CHAMP.map(nomBloc => {
-              const rotation = getRotation(nomBloc, anneeSelectionnee)
+            {BLOCS_GROUPES.map(groupe => {
+              const rotation = getRotationGroupe(groupe, anneeSelectionnee)
               const couleur = rotation ? getCouleur(rotation.description) : '#e5e7eb'
               return (
-                <div key={nomBloc} style={{ background: couleur + '22', border: `1px solid ${couleur}`, borderRadius: 8, padding: '12px 14px' }}>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: '#111', marginBottom: 6 }}>Bloc {nomBloc}</div>
+                <div key={groupe.parent} style={{ background: couleur + '22', border: `1px solid ${couleur}`, borderRadius: 8, padding: '12px 14px' }}>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: '#111', marginBottom: 4 }}>
+                    Bloc {groupe.parent}
+                    <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 400, marginLeft: 6 }}>
+                      {groupe.sousBlocs.join(' + ')}
+                    </span>
+                  </div>
                   <div style={{ fontSize: 12, color: '#444', lineHeight: 1.5 }}>
                     {rotation ? rotation.description.split(' · ').map((d, i) => <div key={i}>{d}</div>) : <span style={{ color: '#9ca3af' }}>Non défini</span>}
                   </div>
@@ -145,29 +169,34 @@ function getRotation(nomBloc, annee) {
           </div>
           <div style={{ padding: 14 }}>
             <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 14 }}>
-              Blocs A/B/C → rotation 3 ans minimum · Blocs D→H → rotation 6 ans minimum
+              Blocs A/B/C → rotation 3 ans minimum · Blocs D/E/F/G/H → rotation 5 ans minimum
             </div>
-            {BLOCS_CHAMP.filter(b => b !== 'I').map(nomBloc => {
-              const rotationsBloc = ANNEES.map(a => ({ annee: a, rotation: getRotation(nomBloc, a) })).filter(r => r.rotation)
-              const rotationRequise = ['A', 'B', 'C'].includes(nomBloc) ? 3 : 6
+            {BLOCS_GROUPES.filter(g => g.type !== 'bonus').map(groupe => {
+              const rotationRequise = groupe.type === 'ete' ? 3 : 5
+              const rotationsGroupe = ANNEES.map(a => ({
+                annee: a,
+                rotation: getRotationGroupe(groupe, a)
+              })).filter(r => r.rotation)
+
               const conflits = []
-              for (let i = 0; i < rotationsBloc.length; i++) {
-                for (let j = i + 1; j < rotationsBloc.length; j++) {
-                  const desc1 = rotationsBloc[i].rotation.description.split(' · ')[0]
-                  const desc2 = rotationsBloc[j].rotation.description.split(' · ')[0]
+              for (let i = 0; i < rotationsGroupe.length; i++) {
+                for (let j = i + 1; j < rotationsGroupe.length; j++) {
+                  const desc1 = rotationsGroupe[i].rotation.description.split(' · ')[0]
+                  const desc2 = rotationsGroupe[j].rotation.description.split(' · ')[0]
                   if (desc1 === desc2) {
-                    const intervalle = rotationsBloc[j].annee - rotationsBloc[i].annee
+                    const intervalle = rotationsGroupe[j].annee - rotationsGroupe[i].annee
                     if (intervalle < rotationRequise) {
-                      conflits.push({ annee1: rotationsBloc[i].annee, annee2: rotationsBloc[j].annee, culture: desc1, intervalle })
+                      conflits.push({ annee1: rotationsGroupe[i].annee, annee2: rotationsGroupe[j].annee, culture: desc1, intervalle })
                     }
                     break
                   }
                 }
               }
+
               return (
-                <div key={nomBloc} style={{ marginBottom: 12, padding: '10px 12px', background: conflits.length > 0 ? '#fef2f2' : '#f0fdf4', border: `1px solid ${conflits.length > 0 ? '#fca5a5' : '#86efac'}`, borderRadius: 6 }}>
+                <div key={groupe.parent} style={{ marginBottom: 10, padding: '10px 12px', background: conflits.length > 0 ? '#fef2f2' : '#f0fdf4', border: `1px solid ${conflits.length > 0 ? '#fca5a5' : '#86efac'}`, borderRadius: 6 }}>
                   <div style={{ fontSize: 13, fontWeight: 500, color: '#111', marginBottom: conflits.length > 0 ? 6 : 0 }}>
-                    Bloc {nomBloc} {conflits.length === 0 ? '✓ Conforme' : `✗ ${conflits.length} conflit(s)`}
+                    Bloc {groupe.parent} ({groupe.sousBlocs.join(', ')}) {conflits.length === 0 ? '✓ Conforme' : `✗ ${conflits.length} conflit(s)`}
                   </div>
                   {conflits.map((c, i) => (
                     <div key={i} style={{ fontSize: 12, color: '#dc2626' }}>

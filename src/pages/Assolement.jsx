@@ -22,15 +22,20 @@ export default function Assolement() {
   const [propositionDebord, setPropositionDebord] = useState(null)
   const [annee, setAnnee] = useState(2026)
   const refs = useRef({})
+  const [rechercheSerie, setRechercheSerie] = useState('')
 
- useEffect(() => { fetchData() }, [annee])
+  const moisAffiches = MOIS.slice(offsetMois, offsetMois + 6)
+  const semaineDebut = SEMAINES_PAR_MOIS.slice(0, offsetMois).reduce((a, b) => a + b, 0) + 1
+  const semaineFin = SEMAINES_PAR_MOIS.slice(0, offsetMois + 6).reduce((a, b) => a + b, 0)
+
+  useEffect(() => { fetchData() }, [annee])
 
   async function fetchData() {
     const [{ data: b }, { data: p }, { data: s }, { data: c }] = await Promise.all([
       supabase.from('blocs').select('*').order('nom'),
       supabase.from('planches').select('*').order('numero'),
       supabase.from('series').select('*, legumes(nom, familles(couleur), espacement_plants, rangs), varietes(nom)').eq('annee', annee).order('created_at', { ascending: false }),
-supabase.from('cultures').select('*, legumes(nom, familles(couleur)), varietes(nom)').eq('annee', annee).order('created_at'),
+      supabase.from('cultures').select('*, legumes(nom, familles(couleur)), varietes(nom)').eq('annee', annee).order('created_at'),
     ])
     setBlocs(b || [])
     setPlanches(p || [])
@@ -40,13 +45,22 @@ supabase.from('cultures').select('*, legumes(nom, familles(couleur)), varietes(n
   }
 
   const seriesPlacees = new Set(cultures.map(c => c.serie_id).filter(Boolean))
-  const seriesDisponibles = series
-    .filter(s => !seriesPlacees.has(s.id))
-    .sort((a, b) => {
-      if (triSeries === 'alpha') return (a.legumes?.nom || '').localeCompare(b.legumes?.nom || '')
-      if (triSeries === 'semaine') return (a.semaine_plantation || 0) - (b.semaine_plantation || 0)
-      return 0
-    })
+const seriesDisponibles = series
+  .filter(s => !seriesPlacees.has(s.id))
+  .filter(s => {
+    if (!rechercheSerie) return true
+    const q = rechercheSerie.toLowerCase()
+    return s.legumes?.nom?.toLowerCase().includes(q) || s.varietes?.nom?.toLowerCase().includes(q) || s.nom?.toLowerCase().includes(q)
+  })
+  .sort((a, b) => {
+    if (triSeries === 'alpha') return (a.legumes?.nom || '').localeCompare(b.legumes?.nom || '')
+    if (triSeries === 'semaine') return (a.semaine_plantation || 0) - (b.semaine_plantation || 0)
+    return 0
+  })
+
+  const blocsAffiches = blocs
+    .filter(b => vue === 'champ' ? b.type !== 'serre' : b.type === 'serre')
+    .sort((a, b) => a.nom.localeCompare(b.nom))
 
   function getSaison(semaine) {
     if (semaine <= 9) return 'hiver'
@@ -119,6 +133,7 @@ supabase.from('cultures').select('*, legumes(nom, familles(couleur)), varietes(n
 
   async function confirmerDebord(accepter) {
     const { serie, plancheId, plancheSuivante, metresPlanche, metresDebord, dureeSemaines, semPlantation } = propositionDebord
+
     await supabase.from('cultures').insert({
       planche_id: plancheId,
       legume_id: serie.legume_id,
@@ -131,20 +146,45 @@ supabase.from('cultures').select('*, legumes(nom, familles(couleur)), varietes(n
       position_debut: 50 - metresPlanche,
       saison: getSaison(semPlantation), annee: 2026,
     })
+
     if (accepter && plancheSuivante) {
-      await supabase.from('cultures').insert({
-        planche_id: plancheSuivante.id,
-        legume_id: serie.legume_id,
-        variete_id: serie.variete_id || null,
-        serie_id: serie.id,
-        type: 'prevu', statut: 'en_culture',
-        date_plantation: semaineToDate(semPlantation, 2026),
-        date_fin_prevue: semaineToDate(semPlantation + dureeSemaines, 2026),
-        longueur_metres: metresDebord,
-        position_debut: 0,
-        saison: getSaison(semPlantation), annee: 2026,
-      })
+      const bloc = blocs.find(b => planches.find(p => p.id === plancheId && p.bloc_id === b.id))
+      const planchesBloc = planches.filter(p => p.bloc_id === bloc?.id).sort((a, b) => a.numero - b.numero)
+      const indexSuivante = planchesBloc.findIndex(p => p.id === plancheSuivante.id)
+
+      let resteAplacer = metresDebord
+      let indexCourant = indexSuivante
+
+      while (resteAplacer > 0 && indexCourant < planchesBloc.length) {
+        const plancheActuelle = planchesBloc[indexCourant]
+        const culturesActuelle = cultures.filter(c => c.planche_id === plancheActuelle.id)
+        const metresOccupes = culturesActuelle.reduce((acc, c) => acc + (c.longueur_metres || 0), 0)
+        const metresDisponibles = 50 - metresOccupes
+        const metresAplacer = Math.min(resteAplacer, metresDisponibles)
+
+        if (metresAplacer > 0) {
+          await supabase.from('cultures').insert({
+            planche_id: plancheActuelle.id,
+            legume_id: serie.legume_id,
+            variete_id: serie.variete_id || null,
+            serie_id: serie.id,
+            type: 'prevu', statut: 'en_culture',
+            date_plantation: semaineToDate(semPlantation, 2026),
+            date_fin_prevue: semaineToDate(semPlantation + dureeSemaines, 2026),
+            longueur_metres: metresAplacer,
+            position_debut: metresOccupes,
+            saison: getSaison(semPlantation), annee: 2026,
+          })
+          resteAplacer -= metresAplacer
+        }
+        indexCourant++
+      }
+
+      if (resteAplacer > 0) {
+        alert(`Attention : il reste ${resteAplacer}m qui n'ont pas pu être placés — fin de bloc atteinte.`)
+      }
     }
+
     setPropositionDebord(null)
     fetchData()
   }
@@ -157,29 +197,98 @@ supabase.from('cultures').select('*, legumes(nom, familles(couleur)), varietes(n
   }
 
   async function modifierCulture(id, updates) {
-    await supabase.from('cultures').update(updates).eq('id', id)
+    const { data: cultureActuelle } = await supabase
+      .from('cultures')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (!cultureActuelle) {
+      setModifCulture(null)
+      setCultureSelectionnee(null)
+      fetchData()
+      return
+    }
+
+    const ancienneLongueur = cultureActuelle.longueur_metres || 0
+    const nouvelleLongueur = updates.longueur_metres || ancienneLongueur
+
+  const metresDispoPlanche = 50 - (ancienneLongueur - (cultureActuelle.position_debut || 0))
+const longueurCorrigee = Math.min(nouvelleLongueur, 50 - (cultureActuelle.position_debut || 0))
+await supabase.from('cultures').update({
+  ...updates,
+  longueur_metres: longueurCorrigee
+}).eq('id', id)
+
+    if (nouvelleLongueur > ancienneLongueur) {
+      const surplus = nouvelleLongueur - ancienneLongueur
+      const plancheId = cultureActuelle.planche_id
+      const bloc = blocs.find(b => planches.find(p => p.id === plancheId && p.bloc_id === b.id))
+      const planchesBloc = planches.filter(p => p.bloc_id === bloc?.id).sort((a, b) => a.numero - b.numero)
+      const indexActuel = planchesBloc.findIndex(p => p.id === plancheId)
+
+      const { data: toutesLesCultures } = await supabase
+        .from('cultures')
+        .select('*')
+        .in('planche_id', planchesBloc.map(p => p.id))
+
+      let resteAplacer = surplus
+      let indexCourant = indexActuel + 1
+
+      while (resteAplacer > 0 && indexCourant < planchesBloc.length) {
+        const plancheActuelle = planchesBloc[indexCourant]
+        const culturesPlanche = (toutesLesCultures || []).filter(c => c.planche_id === plancheActuelle.id)
+        const metresOccupes = culturesPlanche.reduce((acc, c) => acc + (c.longueur_metres || 0), 0)
+        const metresDisponibles = 50 - metresOccupes
+        const metresAplacer = Math.min(resteAplacer, metresDisponibles)
+
+        if (metresAplacer > 0) {
+          const existeDeja = culturesPlanche.find(c => c.serie_id === cultureActuelle.serie_id)
+          if (existeDeja) {
+            await supabase.from('cultures').update({
+              longueur_metres: existeDeja.longueur_metres + metresAplacer
+            }).eq('id', existeDeja.id)
+          } else {
+            await supabase.from('cultures').insert({
+              planche_id: plancheActuelle.id,
+              legume_id: cultureActuelle.legume_id,
+              variete_id: cultureActuelle.variete_id || null,
+              serie_id: cultureActuelle.serie_id,
+              type: cultureActuelle.type,
+              statut: cultureActuelle.statut,
+              date_plantation: cultureActuelle.date_plantation,
+              date_fin_prevue: cultureActuelle.date_fin_prevue,
+              longueur_metres: metresAplacer,
+              position_debut: metresOccupes,
+              saison: cultureActuelle.saison,
+              annee: cultureActuelle.annee,
+            })
+          }
+          resteAplacer -= metresAplacer
+        }
+        indexCourant++
+      }
+
+      if (resteAplacer > 0) {
+        alert(`Attention : il reste ${resteAplacer}m non placés — fin de bloc atteinte.`)
+      }
+    }
+
     setModifCulture(null)
     setCultureSelectionnee(null)
     fetchData()
   }
-
-  const blocsAffiches = blocs.filter(b => vue === 'champ' ? b.type !== 'serre' : b.type === 'serre')
-  const moisAffiches = MOIS.slice(offsetMois, offsetMois + 6)
-  const semaineDebut = SEMAINES_PAR_MOIS.slice(0, offsetMois).reduce((a, b) => a + b, 0) + 1
-  const semaineFin = SEMAINES_PAR_MOIS.slice(0, offsetMois + 6).reduce((a, b) => a + b, 0)
 
   return (
     <div style={{ display: 'flex', gap: 12, height: 'calc(100vh - 48px)' }}>
       <div style={{ flex: 1, overflow: 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, position: 'sticky', top: 0, background: '#f3f4f6', padding: '10px 0', zIndex: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-  <h1 style={{ fontSize: 18, fontWeight: 500, color: '#111' }}>Assolement</h1>
-  <select value={annee} onChange={e => setAnnee(parseInt(e.target.value))}
-    style={{ fontSize: 13, padding: '5px 10px', border: '1px solid #e5e7eb', borderRadius: 6 }}>
-    {[2024, 2025, 2026, 2027, 2028].map(a => <option key={a} value={a}>{a}</option>)}
-  </select>
-</div>
+            <h1 style={{ fontSize: 18, fontWeight: 500, color: '#111' }}>Assolement</h1>
+            <select value={annee} onChange={e => setAnnee(parseInt(e.target.value))}
+              style={{ fontSize: 13, padding: '5px 10px', border: '1px solid #e5e7eb', borderRadius: 6 }}>
+              {[2024, 2025, 2026, 2027, 2028].map(a => <option key={a} value={a}>{a}</option>)}
+            </select>
             <div style={{ display: 'flex', border: '1px solid #e5e7eb', borderRadius: 6, overflow: 'hidden' }}>
               {['champ', 'serres'].map(v => (
                 <button key={v} onClick={() => setVue(v)} style={{ padding: '5px 12px', fontSize: 12, border: 'none', cursor: 'pointer', background: vue === v ? '#1D9E75' : '#f9fafb', color: vue === v ? '#fff' : '#6b7280' }}>
@@ -368,7 +477,7 @@ supabase.from('cultures').select('*, legumes(nom, familles(couleur)), varietes(n
               La série <strong>{propositionDebord.serie.legumes?.nom}</strong> fait <strong>{propositionDebord.serie.longueur_metres}m</strong> mais il ne reste que <strong>{propositionDebord.metresPlanche}m</strong> disponibles.
               <br /><br />
               {propositionDebord.plancheSuivante
-                ? <>Les <strong>{propositionDebord.metresDebord}m</strong> restants seront placés sur la planche suivante.</>
+                ? <>Les <strong>{propositionDebord.metresDebord}m</strong> restants seront placés sur les planches suivantes.</>
                 : <span style={{ color: '#dc2626' }}>⚠ Fin de bloc — impossible de reporter.</span>
               }
             </div>

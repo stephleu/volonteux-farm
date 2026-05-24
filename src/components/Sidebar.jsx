@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Map, Tractor, Sprout, Calendar, History, Settings, Shield, Layers, ClipboardCheck } from 'lucide-react'
+import { LayoutDashboard, Map, Tractor, Sprout, Calendar, History, Settings, Shield, Layers, ClipboardCheck, ShoppingBag } from 'lucide-react'
 
 const nav = [
   { to: '/', icon: LayoutDashboard, label: 'Tableau de bord' },
@@ -12,6 +12,11 @@ const nav = [
   { to: '/historique', icon: History, label: 'Historique' },
   { to: '/historique/reel', icon: ClipboardCheck, label: 'Réel', parent: true },
   { to: '/parametres', icon: Settings, label: 'Paramètres' },
+{ to: '/mercuriale', icon: ShoppingBag, label: 'Mercuriale' },
+{ to: '/mercuriale/produits', icon: ShoppingBag, label: 'Produits', parent: true },
+{ to: '/mercuriale/epiceries', icon: ShoppingBag, label: 'Épiceries', parent: true },
+{ to: '/mercuriale/commandes', icon: ShoppingBag, label: 'Commandes', parent: true },
+{ to: '/mercuriale/etiquettes', icon: ShoppingBag, label: 'Étiquettes', parent: true },
 ]
 
 export default function Sidebar() {

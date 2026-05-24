@@ -21,8 +21,10 @@ export default function Assolement() {
   const [triSeries, setTriSeries] = useState('recent')
   const [propositionDebord, setPropositionDebord] = useState(null)
   const [annee, setAnnee] = useState(2026)
-  const refs = useRef({})
   const [rechercheSerie, setRechercheSerie] = useState('')
+  const [culturesSelectionnees, setCulturesSelectionnees] = useState(new Set())
+  const [modeSelection, setModeSelection] = useState(false)
+  const refs = useRef({})
 
   const moisAffiches = MOIS.slice(offsetMois, offsetMois + 6)
   const semaineDebut = SEMAINES_PAR_MOIS.slice(0, offsetMois).reduce((a, b) => a + b, 0) + 1
@@ -45,18 +47,18 @@ export default function Assolement() {
   }
 
   const seriesPlacees = new Set(cultures.map(c => c.serie_id).filter(Boolean))
-const seriesDisponibles = series
-  .filter(s => !seriesPlacees.has(s.id))
-  .filter(s => {
-    if (!rechercheSerie) return true
-    const q = rechercheSerie.toLowerCase()
-    return s.legumes?.nom?.toLowerCase().includes(q) || s.varietes?.nom?.toLowerCase().includes(q) || s.nom?.toLowerCase().includes(q)
-  })
-  .sort((a, b) => {
-    if (triSeries === 'alpha') return (a.legumes?.nom || '').localeCompare(b.legumes?.nom || '')
-    if (triSeries === 'semaine') return (a.semaine_plantation || 0) - (b.semaine_plantation || 0)
-    return 0
-  })
+  const seriesDisponibles = series
+    .filter(s => !seriesPlacees.has(s.id))
+    .filter(s => {
+      if (!rechercheSerie) return true
+      const q = rechercheSerie.toLowerCase()
+      return s.legumes?.nom?.toLowerCase().includes(q) || s.varietes?.nom?.toLowerCase().includes(q) || s.nom?.toLowerCase().includes(q)
+    })
+    .sort((a, b) => {
+      if (triSeries === 'alpha') return (a.legumes?.nom || '').localeCompare(b.legumes?.nom || '')
+      if (triSeries === 'semaine') return (a.semaine_plantation || 0) - (b.semaine_plantation || 0)
+      return 0
+    })
 
   const blocsAffiches = blocs
     .filter(b => vue === 'champ' ? b.type !== 'serre' : b.type === 'serre')
@@ -83,6 +85,14 @@ const seriesDisponibles = series
 
   async function placerSerie(plancheId, serie) {
     if (!serie) return
+
+    if (serie._deplacer) {
+      await supabase.from('cultures').update({ planche_id: plancheId }).eq('id', serie._cultureId)
+      setDragSerie(null)
+      fetchData()
+      return
+    }
+
     const saison = getSaison(serie.semaine_plantation || 14)
     const bloc = blocs.find(b => planches.find(p => p.id === plancheId && p.bloc_id === b.id))
     const lieu = bloc?.type === 'serre' ? 'serre' : 'exterieur'
@@ -128,6 +138,15 @@ const seriesDisponibles = series
       saison, annee: 2026,
     })
     setDragSerie(null)
+    fetchData()
+  }
+
+  async function retirerSelectionMultiple() {
+    for (const id of culturesSelectionnees) {
+      await supabase.from('cultures').delete().eq('id', id)
+    }
+    setCulturesSelectionnees(new Set())
+    setModeSelection(false)
     fetchData()
   }
 
@@ -212,13 +231,12 @@ const seriesDisponibles = series
 
     const ancienneLongueur = cultureActuelle.longueur_metres || 0
     const nouvelleLongueur = updates.longueur_metres || ancienneLongueur
+    const longueurCorrigee = Math.min(nouvelleLongueur, 50 - (cultureActuelle.position_debut || 0))
 
-  const metresDispoPlanche = 50 - (ancienneLongueur - (cultureActuelle.position_debut || 0))
-const longueurCorrigee = Math.min(nouvelleLongueur, 50 - (cultureActuelle.position_debut || 0))
-await supabase.from('cultures').update({
-  ...updates,
-  longueur_metres: longueurCorrigee
-}).eq('id', id)
+    await supabase.from('cultures').update({
+      ...updates,
+      longueur_metres: longueurCorrigee
+    }).eq('id', id)
 
     if (nouvelleLongueur > ancienneLongueur) {
       const surplus = nouvelleLongueur - ancienneLongueur
@@ -298,6 +316,16 @@ await supabase.from('cultures').update({
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button onClick={() => {
+              if (modeSelection && culturesSelectionnees.size > 0) {
+                retirerSelectionMultiple()
+              } else {
+                setModeSelection(!modeSelection)
+                setCulturesSelectionnees(new Set())
+              }
+            }} style={{ fontSize: 12, padding: '5px 12px', border: '1px solid #e5e7eb', borderRadius: 6, cursor: 'pointer', background: modeSelection ? '#ef4444' : '#fff', color: modeSelection ? '#fff' : '#111' }}>
+              {modeSelection ? (culturesSelectionnees.size > 0 ? `Retirer (${culturesSelectionnees.size})` : 'Annuler') : 'Sélection multiple'}
+            </button>
             <button onClick={() => setShowSeries(!showSeries)} style={{ fontSize: 12, padding: '5px 12px', border: '1px solid #e5e7eb', borderRadius: 6, cursor: 'pointer', background: showSeries ? '#1D9E75' : '#fff', color: showSeries ? '#fff' : '#111' }}>
               {showSeries ? 'Masquer séries' : `Placer une série (${seriesDisponibles.length})`}
             </button>
@@ -365,10 +393,28 @@ await supabase.from('cultures').update({
                           if (leftPct > 100 || leftPct + widthPct < 0) return null
                           const couleur = culture.legumes?.familles?.couleur || '#1D9E75'
                           const estSelectionnee = cultureSelectionnee?.id === culture.id
+                          const estCochee = culturesSelectionnees.has(culture.id)
                           const top = i * 26 + 2
                           return (
                             <div key={culture.id}
-                              onClick={e => { e.stopPropagation(); setCultureSelectionnee(estSelectionnee ? null : culture); setModifCulture(null) }}
+                              draggable={!modeSelection}
+                              onDragStart={e => {
+                                e.stopPropagation()
+                                setDragSerie({ ...culture, _deplacer: true, _cultureId: culture.id })
+                              }}
+                              onDragEnd={() => setDragSerie(null)}
+                              onClick={e => {
+                                e.stopPropagation()
+                                if (modeSelection) {
+                                  const newSet = new Set(culturesSelectionnees)
+                                  if (newSet.has(culture.id)) newSet.delete(culture.id)
+                                  else newSet.add(culture.id)
+                                  setCulturesSelectionnees(newSet)
+                                } else {
+                                  setCultureSelectionnee(estSelectionnee ? null : culture)
+                                  setModifCulture(null)
+                                }
+                              }}
                               style={{
                                 position: 'absolute',
                                 left: `${Math.max(0, leftPct)}%`,
@@ -377,13 +423,14 @@ await supabase.from('cultures').update({
                                 background: couleur + 'cc',
                                 borderRadius: 3,
                                 display: 'flex', alignItems: 'center', paddingLeft: 4,
-                                cursor: 'pointer',
-                                border: estSelectionnee ? '2px solid #111' : 'none',
+                                cursor: modeSelection ? 'pointer' : 'grab',
+                                border: estCochee ? '2px solid #ef4444' : estSelectionnee ? '2px solid #111' : 'none',
                                 zIndex: estSelectionnee ? 5 : 1,
                                 overflow: 'hidden',
+                                opacity: estCochee ? 0.7 : 1,
                               }}>
                               <span style={{ fontSize: 10, fontWeight: 500, color: '#fff', whiteSpace: 'nowrap' }}>
-                                {culture.legumes?.nom}{culture.varietes?.nom ? ` · ${culture.varietes.nom}` : ''} · {culture.longueur_metres}m
+                                {estCochee ? '✓ ' : ''}{culture.legumes?.nom}{culture.varietes?.nom ? ` · ${culture.varietes.nom}` : ''} · {culture.longueur_metres}m
                               </span>
                             </div>
                           )
@@ -398,7 +445,7 @@ await supabase.from('cultures').update({
         </div>
       </div>
 
-      {cultureSelectionnee && !modifCulture && (
+      {cultureSelectionnee && !modifCulture && !modeSelection && (
         <div style={{ width: 220, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: 14, flexShrink: 0, alignSelf: 'flex-start', marginTop: 60 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <span style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{cultureSelectionnee.legumes?.nom}</span>
@@ -434,21 +481,26 @@ await supabase.from('cultures').update({
       )}
 
       {showSeries && (
-        <div style={{ width: 200, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: 12, overflowY: 'auto', flexShrink: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: '#111', marginBottom: 6 }}>Séries à placer</div>
-          <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+        <div style={{ width: 180, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: 10, overflowY: 'auto', flexShrink: 0 }}>
+          <div style={{ fontSize: 12, fontWeight: 500, color: '#111', marginBottom: 6 }}>Séries à placer</div>
+          <input
+            value={rechercheSerie}
+            onChange={e => setRechercheSerie(e.target.value)}
+            placeholder="Rechercher..."
+            style={{ width: '100%', fontSize: 11, padding: '4px 7px', border: '1px solid #e5e7eb', borderRadius: 5, marginBottom: 6 }}
+          />
+          <div style={{ display: 'flex', gap: 3, marginBottom: 6 }}>
             {[['recent', 'Récent'], ['alpha', 'A→Z'], ['semaine', 'Chrono']].map(([val, label]) => (
               <button key={val} onClick={() => setTriSeries(val)} style={{
-                flex: 1, padding: '3px 0', fontSize: 10, border: '1px solid #e5e7eb',
+                flex: 1, padding: '2px 0', fontSize: 9, border: '1px solid #e5e7eb',
                 borderRadius: 4, cursor: 'pointer',
                 background: triSeries === val ? '#1D9E75' : '#f9fafb',
                 color: triSeries === val ? '#fff' : '#6b7280',
               }}>{label}</button>
             ))}
           </div>
-          <div style={{ fontSize: 11, color: '#9ca3af', marginBottom: 8 }}>Glissez sur une planche</div>
           {seriesDisponibles.length === 0 && (
-            <p style={{ fontSize: 12, color: '#9ca3af' }}>Toutes les séries sont placées !</p>
+            <p style={{ fontSize: 11, color: '#9ca3af' }}>Aucune série</p>
           )}
           {seriesDisponibles.map(serie => {
             const couleur = serie.legumes?.familles?.couleur || '#1D9E75'
@@ -456,12 +508,9 @@ await supabase.from('cultures').update({
               <div key={serie.id} draggable
                 onDragStart={() => setDragSerie(serie)}
                 onDragEnd={() => setDragSerie(null)}
-                style={{ padding: '7px 9px', marginBottom: 5, background: couleur + '22', border: `1px solid ${couleur}`, borderRadius: 6, cursor: 'grab', opacity: dragSerie?.id === serie.id ? 0.5 : 1 }}>
-                <div style={{ fontSize: 11, fontWeight: 500, color: '#111' }}>
-                  {serie.legumes?.nom}{serie.varietes?.nom ? ` · ${serie.varietes.nom}` : ''}
-                </div>
-                <div style={{ fontSize: 10, color: '#6b7280', marginTop: 1 }}>
-                  Sem. {serie.semaine_plantation} · {serie.longueur_metres}m
+                style={{ padding: '4px 7px', marginBottom: 3, background: couleur + '22', border: `1px solid ${couleur}`, borderRadius: 5, cursor: 'grab', opacity: dragSerie?.id === serie.id ? 0.5 : 1 }}>
+                <div style={{ fontSize: 10, color: '#111', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {serie.legumes?.nom} S{serie.semaine_plantation} · {serie.longueur_metres}m
                 </div>
               </div>
             )

@@ -20,6 +20,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/mercuriale/catalogue" element={<MercurialeCatalogue />} />
         <Route path="/" element={<Layout />}>
           <Route index element={<Dashboard />} />
           <Route path="plan">
@@ -40,7 +41,6 @@ export default function App() {
             <Route path="epiceries" element={<MerculialeEpiceries />} />
             <Route path="commandes" element={<MerculialeCommandes />} />
             <Route path="etiquettes" element={<MerculialeEtiquettes />} />
-            <Route path="catalogue" element={<MercurialeCatalogue />} />
           </Route>
           <Route path="parametres" element={<Parametres />} />
         </Route>

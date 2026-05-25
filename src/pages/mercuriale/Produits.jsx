@@ -38,6 +38,17 @@ export default function MercurialeProduits() {
     })
   }
 
+  function handlePrixTTC(val) {
+  const ttc = parseFloat(val)
+  const ht = ttc ? (ttc / 1.055).toFixed(2) : ''
+  setForm({
+    ...form,
+    prix_ttc: val,
+    prix_ht: ht,
+    prix_remise: ht ? (parseFloat(ht) * 0.8).toFixed(2) : '',
+  })
+}
+
   async function handleSave() {
     const payload = {
       nom: form.nom,
@@ -142,7 +153,7 @@ export default function MercurialeProduits() {
             </div>
             <div>
               <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 3 }}>Prix TTC (€)</div>
-              <input type="number" step="0.01" value={form.prix_ttc} onChange={e => setForm({ ...form, prix_ttc: e.target.value })} style={inputStyle} />
+              <input type="number" step="0.01" value={form.prix_ttc} onChange={e => handlePrixTTC(e.target.value)} style={inputStyle} />
             </div>
             <div>
               <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 3 }}>Quantité dispo (colis)</div>

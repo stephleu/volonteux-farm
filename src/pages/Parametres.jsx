@@ -324,7 +324,7 @@ function GestionAnnees({ blocs }) {
   const msgs = []
 
   const rotationCourte = ['A1', 'A2', 'B1', 'B2', 'B3', 'C']
-  const rotationLongue = ['D1', 'E', 'F1', 'F2', 'G', 'H1', 'H2']
+  const rotationLongue = ['D', 'E', 'F1', 'F2', 'G', 'H1', 'H2']
   let totalDupliquees = 0
 
   async function dupliquerGroupe(groupeBlocs) {

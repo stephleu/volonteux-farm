@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
-const LONGUEUR_PLANCHE = 50
+const LONGUEUR_DEFAUT = 50
+const longueurDe = planche => Number(planche?.longueur) || LONGUEUR_DEFAUT
 const INCREMENT = 5
 
 export default function Reel() {
@@ -74,18 +75,21 @@ export default function Reel() {
   const blocsChamp = blocs.filter(b => b.type !== 'serre')
   const planchesBloc = planches.filter(p => p.bloc_id === blocSelectionne)
 
-  function handleDrop(e, plancheId) {
+  // Règle commune au bloc : la planche la plus longue fait toute la largeur
+  const longueurMax = Math.max(0, ...planchesBloc.map(longueurDe)) || LONGUEUR_DEFAUT
+
+  function handleDrop(e, planche) {
     e.preventDefault()
     const rect = e.currentTarget.getBoundingClientRect()
     const pct = (e.clientX - rect.left) / rect.width
     const longueur = dragCulture?.longueur_metres || 10
-    const positionBrute = Math.round(pct * LONGUEUR_PLANCHE / INCREMENT) * INCREMENT
-    const position = Math.max(0, Math.min(LONGUEUR_PLANCHE - longueur, positionBrute))
+    const positionBrute = Math.round(pct * longueurDe(planche) / INCREMENT) * INCREMENT
+    const position = Math.max(0, Math.min(longueurDe(planche) - longueur, positionBrute))
 
     if (dragCulture?._deplacer) {
       deplacerCulture(dragCulture.id, position)
     } else {
-      placerCulture(plancheId, position)
+      placerCulture(planche.id, position)
     }
   }
 
@@ -122,7 +126,7 @@ export default function Reel() {
             <div style={{ display: 'grid', gridTemplateColumns: '70px 1fr', marginBottom: 4 }}>
               <div />
               <div style={{ display: 'flex' }}>
-                {Array.from({ length: 11 }, (_, i) => i * 5).map(m => (
+                {Array.from({ length: Math.floor(longueurMax / 5) + 1 }, (_, i) => i * 5).map(m => (
                   <div key={m} style={{ flex: 1, fontSize: 9, color: 'var(--encre-pale)', textAlign: 'left', paddingLeft: 2 }}>{m}m</div>
                 ))}
               </div>
@@ -142,16 +146,16 @@ export default function Reel() {
                     {bloc?.nom}-{String(planche.numero).padStart(2, '0')}
                   </div>
                   <div
-                    style={{ position: 'relative', height: 28, background: 'var(--fond)', borderRadius: 0, border: `1px solid ${estSelectionnee ? 'var(--accent)' : dragCulture ? 'var(--accent)' : 'var(--trait-leger)'}`, borderStyle: dragCulture ? 'dashed' : 'solid', overflow: 'hidden' }}
+                    style={{ position: 'relative', width: `${(longueurDe(planche) / longueurMax) * 100}%`, height: 28, background: 'var(--fond)', borderRadius: 0, border: `1px solid ${estSelectionnee ? 'var(--accent)' : dragCulture ? 'var(--accent)' : 'var(--trait-leger)'}`, borderStyle: dragCulture ? 'dashed' : 'solid', overflow: 'hidden' }}
                     onDragOver={e => e.preventDefault()}
-                    onDrop={e => handleDrop(e, planche.id)}
+                    onDrop={e => handleDrop(e, planche)}
                   >
-                    {Array.from({ length: 10 }, (_, i) => (
-                      <div key={i} style={{ position: 'absolute', left: `${(i + 1) * 10}%`, top: 0, bottom: 0, borderLeft: '1px solid var(--trait)', opacity: 0.5 }} />
+                    {Array.from({ length: Math.floor(longueurDe(planche) / 5) - 1 }, (_, i) => (
+                      <div key={i} style={{ position: 'absolute', left: `${((i + 1) * 5 / longueurDe(planche)) * 100}%`, top: 0, bottom: 0, borderLeft: '1px solid var(--trait)', opacity: 0.5 }} />
                     ))}
                     {culturesPlanche.map((culture, i) => {
-                      const leftPct = (culture.position_debut / LONGUEUR_PLANCHE) * 100
-                      const widthPct = (culture.longueur_metres / LONGUEUR_PLANCHE) * 100
+                      const leftPct = (culture.position_debut / longueurDe(planche)) * 100
+                      const widthPct = (culture.longueur_metres / longueurDe(planche)) * 100
                       const couleur = culture.legumes?.familles?.couleur || '#9dca9a'
                       return (
                         <div key={i}
@@ -220,8 +224,8 @@ function PlancheDetail({ planche, bloc, cultures, legumes, onSave, onRetirer }) 
   const [form, setForm] = useState({ legume_id: '', longueur_metres: 10, position_debut: 0 })
   const [saving, setSaving] = useState(false)
 
-  const positions = Array.from({ length: LONGUEUR_PLANCHE / INCREMENT }, (_, i) => i * INCREMENT)
-  const longueurs = Array.from({ length: LONGUEUR_PLANCHE / INCREMENT }, (_, i) => (i + 1) * INCREMENT)
+  const positions = Array.from({ length: longueurDe(planche) / INCREMENT }, (_, i) => i * INCREMENT)
+  const longueurs = Array.from({ length: longueurDe(planche) / INCREMENT }, (_, i) => (i + 1) * INCREMENT)
 
   async function handleSave() {
     setSaving(true)

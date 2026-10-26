@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Sauvegardes de la base avant import (données de la ferme)
+sauvegardes

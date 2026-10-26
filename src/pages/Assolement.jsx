@@ -37,7 +37,10 @@ export default function Assolement() {
       supabase.from('blocs').select('*').order('nom'),
       supabase.from('planches').select('*').order('numero'),
       supabase.from('series').select('*, legumes(nom, familles(couleur), espacement_plants, rangs), varietes(nom)').eq('annee', annee).order('created_at', { ascending: false }),
-      supabase.from('cultures').select('*, legumes(nom, familles(couleur)), varietes(nom)').eq('annee', annee).order('created_at'),
+      // Cultures de l'année, plus celles d'une autre saison encore en place (ex. plantée en novembre, récoltée en février)
+      supabase.from('cultures').select('*, legumes(nom, familles(couleur)), varietes(nom)')
+        .or(`annee.eq.${annee},and(date_plantation.lte.${annee}-12-31,date_fin_prevue.gte.${annee}-01-01)`)
+        .order('date_plantation'),
     ])
     setBlocs(b || [])
     setPlanches(p || [])
@@ -79,8 +82,19 @@ export default function Assolement() {
   function getSemaineDepuisDate(dateStr) {
     if (!dateStr) return null
     const d = new Date(dateStr)
-    const start = new Date(2026, 0, 1)
+    const start = new Date(annee, 0, 1)
     return Math.ceil((d - start) / (7 * 24 * 3600 * 1000))
+  }
+
+  function longueurPlanche(plancheId) {
+    return Number(planches.find(p => p.id === plancheId)?.longueur) || 50
+  }
+
+  // Seules les cultures présentes sur la même période prennent de la place (successions)
+  function metresOccupesPendant(culturesPlanche, debut, fin) {
+    return culturesPlanche
+      .filter(c => !c.date_plantation || !c.date_fin_prevue || (c.date_plantation <= fin && debut <= c.date_fin_prevue))
+      .reduce((acc, c) => acc + (c.longueur_metres || 0), 0)
   }
 
   async function placerSerie(plancheId, serie) {
@@ -105,9 +119,11 @@ export default function Assolement() {
       .single()
     const dureeSemaines = duree?.duree_semaines || 12
     const semPlantation = serie.semaine_plantation || 14
+    const debut = serie.date_plantation || semaineToDate(semPlantation, annee)
+    const fin = serie.derniere_recolte || semaineToDate(semPlantation + dureeSemaines, annee)
     const culturesPlanche = cultures.filter(c => c.planche_id === plancheId)
-    const metresOccupes = culturesPlanche.reduce((acc, c) => acc + (c.longueur_metres || 0), 0)
-    const metresDisponibles = 50 - metresOccupes
+    const metresOccupes = metresOccupesPendant(culturesPlanche, debut, fin)
+    const metresDisponibles = longueurPlanche(plancheId) - metresOccupes
     const metresASerie = serie.longueur_metres || 50
 
     if (metresASerie > metresDisponibles) {
@@ -119,7 +135,7 @@ export default function Assolement() {
         plancheSuivante: plancheSuivante || null,
         metresPlanche: metresDisponibles,
         metresDebord: metresASerie - metresDisponibles,
-        dureeSemaines, semPlantation, lieu,
+        debut, fin, lieu,
       })
       setDragSerie(null)
       return
@@ -131,11 +147,12 @@ export default function Assolement() {
       variete_id: serie.variete_id || null,
       serie_id: serie.id,
       type: 'prevu', statut: 'en_culture',
-      date_plantation: semaineToDate(semPlantation, 2026),
-      date_fin_prevue: semaineToDate(semPlantation + dureeSemaines, 2026),
+      date_plantation: debut,
+      date_fin_prevue: fin,
+      premiere_recolte: serie.premiere_recolte || null,
       longueur_metres: metresASerie,
       position_debut: metresOccupes,
-      saison, annee: 2026,
+      saison, annee,
     })
     setDragSerie(null)
     fetchData()
@@ -151,7 +168,8 @@ export default function Assolement() {
   }
 
   async function confirmerDebord(accepter) {
-    const { serie, plancheId, plancheSuivante, metresPlanche, metresDebord, dureeSemaines, semPlantation } = propositionDebord
+    const { serie, plancheId, plancheSuivante, metresPlanche, metresDebord, debut, fin } = propositionDebord
+    const semPlantation = serie.semaine_plantation || 14
 
     await supabase.from('cultures').insert({
       planche_id: plancheId,
@@ -159,11 +177,12 @@ export default function Assolement() {
       variete_id: serie.variete_id || null,
       serie_id: serie.id,
       type: 'prevu', statut: 'en_culture',
-      date_plantation: semaineToDate(semPlantation, 2026),
-      date_fin_prevue: semaineToDate(semPlantation + dureeSemaines, 2026),
+      date_plantation: debut,
+      date_fin_prevue: fin,
+      premiere_recolte: serie.premiere_recolte || null,
       longueur_metres: metresPlanche,
-      position_debut: 50 - metresPlanche,
-      saison: getSaison(semPlantation), annee: 2026,
+      position_debut: longueurPlanche(plancheId) - metresPlanche,
+      saison: getSaison(semPlantation), annee,
     })
 
     if (accepter && plancheSuivante) {
@@ -177,8 +196,8 @@ export default function Assolement() {
       while (resteAplacer > 0 && indexCourant < planchesBloc.length) {
         const plancheActuelle = planchesBloc[indexCourant]
         const culturesActuelle = cultures.filter(c => c.planche_id === plancheActuelle.id)
-        const metresOccupes = culturesActuelle.reduce((acc, c) => acc + (c.longueur_metres || 0), 0)
-        const metresDisponibles = 50 - metresOccupes
+        const metresOccupes = metresOccupesPendant(culturesActuelle, debut, fin)
+        const metresDisponibles = longueurPlanche(plancheActuelle.id) - metresOccupes
         const metresAplacer = Math.min(resteAplacer, metresDisponibles)
 
         if (metresAplacer > 0) {
@@ -188,11 +207,12 @@ export default function Assolement() {
             variete_id: serie.variete_id || null,
             serie_id: serie.id,
             type: 'prevu', statut: 'en_culture',
-            date_plantation: semaineToDate(semPlantation, 2026),
-            date_fin_prevue: semaineToDate(semPlantation + dureeSemaines, 2026),
+            date_plantation: debut,
+            date_fin_prevue: fin,
+            premiere_recolte: serie.premiere_recolte || null,
             longueur_metres: metresAplacer,
             position_debut: metresOccupes,
-            saison: getSaison(semPlantation), annee: 2026,
+            saison: getSaison(semPlantation), annee,
           })
           resteAplacer -= metresAplacer
         }
@@ -231,7 +251,7 @@ export default function Assolement() {
 
     const ancienneLongueur = cultureActuelle.longueur_metres || 0
     const nouvelleLongueur = updates.longueur_metres || ancienneLongueur
-    const longueurCorrigee = Math.min(nouvelleLongueur, 50 - (cultureActuelle.position_debut || 0))
+    const longueurCorrigee = Math.min(nouvelleLongueur, longueurPlanche(cultureActuelle.planche_id) - (cultureActuelle.position_debut || 0))
 
     await supabase.from('cultures').update({
       ...updates,
@@ -256,8 +276,8 @@ export default function Assolement() {
       while (resteAplacer > 0 && indexCourant < planchesBloc.length) {
         const plancheActuelle = planchesBloc[indexCourant]
         const culturesPlanche = (toutesLesCultures || []).filter(c => c.planche_id === plancheActuelle.id)
-        const metresOccupes = culturesPlanche.reduce((acc, c) => acc + (c.longueur_metres || 0), 0)
-        const metresDisponibles = 50 - metresOccupes
+        const metresOccupes = metresOccupesPendant(culturesPlanche, cultureActuelle.date_plantation, cultureActuelle.date_fin_prevue)
+        const metresDisponibles = longueurPlanche(plancheActuelle.id) - metresOccupes
         const metresAplacer = Math.min(resteAplacer, metresDisponibles)
 
         if (metresAplacer > 0) {
@@ -276,6 +296,7 @@ export default function Assolement() {
               statut: cultureActuelle.statut,
               date_plantation: cultureActuelle.date_plantation,
               date_fin_prevue: cultureActuelle.date_fin_prevue,
+              premiere_recolte: cultureActuelle.premiere_recolte,
               longueur_metres: metresAplacer,
               position_debut: metresOccupes,
               saison: cultureActuelle.saison,
@@ -334,7 +355,7 @@ export default function Assolement() {
               <ChevronLeft size={14} />
             </button>
             <span style={{ fontSize: 12, color: 'var(--encre)', minWidth: 140, textAlign: 'center' }}>
-              {moisAffiches[0]} — {moisAffiches[moisAffiches.length - 1]} 2026
+              {moisAffiches[0]} — {moisAffiches[moisAffiches.length - 1]} {annee}
             </span>
             <button onClick={() => setOffsetMois(Math.min(6, offsetMois + 1))} disabled={offsetMois === 6}
               style={{ border: '1px solid var(--trait)', borderRadius: 0, padding: '5px 8px', cursor: 'pointer', background: 'var(--papier)' }}>
@@ -379,6 +400,7 @@ export default function Assolement() {
                     >
                       <div style={{ fontSize: 11, color: 'var(--encre-douce)', paddingTop: 4 }}>
                         {bloc.nom}-{String(planche.numero).padStart(2, '0')}
+                        {Number(planche.longueur) !== 50 && planche.longueur && <span style={{ color: 'var(--encre-pale)' }}> · {planche.longueur}m</span>}
                       </div>
                       <div style={{ position: 'relative', background: 'var(--fond)', borderRadius: 0, border: dragSerie ? '1px dashed var(--accent)' : '1px solid var(--trait)', height: hauteur }}>
                         {moisAffiches.map((m, i) => (
@@ -454,7 +476,8 @@ export default function Assolement() {
           <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 12 }}>
             {cultureSelectionnee.varietes?.nom && <div>Variété : {cultureSelectionnee.varietes.nom}</div>}
             <div>Plantation : {cultureSelectionnee.date_plantation}</div>
-            <div>Fin prévue : {cultureSelectionnee.date_fin_prevue}</div>
+            {cultureSelectionnee.premiere_recolte && <div>1re récolte : {cultureSelectionnee.premiere_recolte}</div>}
+            <div>Dernière récolte : {cultureSelectionnee.date_fin_prevue}</div>
             <div>Longueur : {cultureSelectionnee.longueur_metres}m</div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

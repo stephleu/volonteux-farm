@@ -2,6 +2,23 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { Plus, X } from 'lucide-react'
 
+const FOURNISSEURS = ['Pépinière interne', 'Desbos', 'Pépi', 'agrosemence', 'agrodia', 'valsoleil', 'Payson ferme', 'GIA ail dromois', 'Semis direct']
+const ANNEES = [2025, 2026, 2027]
+
+function semaineIso(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00Z')
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7) + 3)
+  const premierJeudi = new Date(Date.UTC(d.getUTCFullYear(), 0, 4))
+  return 1 + Math.round(((d - premierJeudi) / 86400000 - 3 + ((premierJeudi.getUTCDay() + 6) % 7)) / 7)
+}
+
+const dateCourte = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : ''
+
+function OptionsFournisseurs({ valeur }) {
+  const liste = valeur && !FOURNISSEURS.includes(valeur) ? [...FOURNISSEURS, valeur] : FOURNISSEURS
+  return liste.map(f => <option key={f}>{f}</option>)
+}
+
 export default function Series() {
   const [series, setSeries] = useState([])
   const [legumes, setLegumes] = useState([])
@@ -12,15 +29,18 @@ export default function Series() {
   const [filtreNom, setFiltreNom] = useState('')
   const [legumeSelectionne, setLegumeSelectionne] = useState(null)
   const [serieEnModif, setSerieEnModif] = useState(null)
-  const [form, setForm] = useState({
+  const [annee, setAnnee] = useState(2026)
+  const formVide = {
     legume_id: '', variete_id: '', nom: '',
     fournisseur: 'Pépinière interne', type: 'plant',
     longueur_metres: 50, semaine_plantation: '', annee: 2026, notes: '',
-  })
+    rangs: '', espacement_plants: '', date_plantation: '', premiere_recolte: '', derniere_recolte: '',
+  }
+  const [form, setForm] = useState(formVide)
   const [fertilisations, setFertilisations] = useState([{ dose_kg_ha: '', semaines_apres_plantation: '' }])
   const [traitements, setTraitements] = useState([{ type_traitement_id: '', semaines_apres_plantation: '' }])
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => { fetchData() }, [annee])
 
   useEffect(() => {
     if (form.legume_id) {
@@ -35,7 +55,7 @@ export default function Series() {
 
   async function fetchData() {
     const [{ data: s }, { data: l }, { data: t }] = await Promise.all([
-      supabase.from('series').select('*, legumes(nom, familles(couleur)), varietes(nom)').order('created_at', { ascending: false }),
+      supabase.from('series').select('*, legumes(nom, familles(couleur)), varietes(nom)').eq('annee', annee).order('semaine_plantation'),
       supabase.from('legumes').select('*').order('nom'),
       supabase.from('types_traitement').select('*').order('nom'),
     ])
@@ -50,14 +70,16 @@ export default function Series() {
     setVarietes(data || [])
   }
 
-  function calculNbPlants(longueur, legume) {
-    if (!legume) return ''
-    return Math.round((longueur * 100 / legume.espacement_plants) * legume.rangs)
+  function calculNbPlants(longueur, rangs, espacement) {
+    if (!rangs || !espacement) return ''
+    return Math.round((longueur * 100 / espacement) * rangs)
   }
+
+  const nombreOuNull = v => (v === '' || v == null ? null : Number(v))
 
   async function handleSave() {
     const nomAuto = form.nom || `${legumes.find(l => l.id === form.legume_id)?.nom || ''} · sem. ${form.semaine_plantation}`
-    const nbPlants = calculNbPlants(form.longueur_metres, legumeSelectionne)
+    const nbPlants = calculNbPlants(form.longueur_metres, form.rangs, form.espacement_plants)
     const payload = {
       legume_id: form.legume_id,
       variete_id: form.variete_id || null,
@@ -69,6 +91,11 @@ export default function Series() {
       annee: form.annee,
       notes: form.notes || null,
       nombre_plants: nbPlants || null,
+      rangs: nombreOuNull(form.rangs),
+      espacement_plants: nombreOuNull(form.espacement_plants),
+      date_plantation: form.date_plantation || null,
+      premiere_recolte: form.premiere_recolte || null,
+      derniere_recolte: form.derniere_recolte || null,
     }
     const { data: serie } = await supabase.from('series').insert(payload).select().single()
     if (serie) {
@@ -78,14 +105,14 @@ export default function Series() {
       if (traits.length > 0) await supabase.from('serie_traitements').insert(traits.map(t => ({ ...t, serie_id: serie.id })))
     }
     setShowForm(false)
-    setForm({ legume_id: '', variete_id: '', nom: '', fournisseur: 'Pépinière interne', type: 'plant', longueur_metres: 50, semaine_plantation: '', annee: 2026, notes: '' })
+    setForm(formVide)
     setFertilisations([{ dose_kg_ha: '', semaines_apres_plantation: '' }])
     setTraitements([{ type_traitement_id: '', semaines_apres_plantation: '' }])
     fetchData()
   }
 
   async function handleUpdate() {
-    const nbPlants = calculNbPlants(serieEnModif.longueur_metres, legumes.find(l => l.id === serieEnModif.legume_id))
+    const nbPlants = calculNbPlants(serieEnModif.longueur_metres, serieEnModif.rangs, serieEnModif.espacement_plants)
     await supabase.from('series').update({
       legume_id: serieEnModif.legume_id,
       variete_id: serieEnModif.variete_id || null,
@@ -95,6 +122,11 @@ export default function Series() {
       semaine_plantation: serieEnModif.semaine_plantation,
       nombre_plants: nbPlants || serieEnModif.nombre_plants,
       notes: serieEnModif.notes,
+      rangs: nombreOuNull(serieEnModif.rangs),
+      espacement_plants: nombreOuNull(serieEnModif.espacement_plants),
+      date_plantation: serieEnModif.date_plantation || null,
+      premiere_recolte: serieEnModif.premiere_recolte || null,
+      derniere_recolte: serieEnModif.derniere_recolte || null,
     }).eq('id', serieEnModif.id)
     setSerieEnModif(null)
     fetchData()
@@ -131,7 +163,12 @@ export default function Series() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Séries</h1>
-          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>{series.length} séries · saison 2026</p>
+          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>
+            {series.length} séries · saison{' '}
+            <select value={annee} onChange={e => setAnnee(parseInt(e.target.value))} style={{ fontSize: 13, padding: '2px 6px', border: '1px solid var(--trait)', borderRadius: 0 }}>
+              {ANNEES.map(a => <option key={a} value={a}>{a}</option>)}
+            </select>
+          </p>
         </div>
         <button onClick={() => setShowForm(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: 'var(--papier)', border: 'none', borderRadius: 0, padding: '8px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
           <Plus size={14} /> Nouvelle série
@@ -151,7 +188,11 @@ export default function Series() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
             <div>
               <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 4 }}>Légume</div>
-              <select value={form.legume_id} onChange={e => setForm({ ...form, legume_id: e.target.value, variete_id: '' })} style={inputStyle}>
+              <select value={form.legume_id} onChange={e => {
+                // Rangs et espacement de la fiche légume par défaut, modifiables pour la série
+                const leg = legumes.find(l => l.id === e.target.value)
+                setForm({ ...form, legume_id: e.target.value, variete_id: '', rangs: leg?.rangs || '', espacement_plants: leg?.espacement_plants || '' })
+              }} style={inputStyle}>
                 <option value="">-- Choisir --</option>
                 {legumes.map(l => <option key={l.id} value={l.id}>{l.nom}</option>)}
               </select>
@@ -173,9 +214,7 @@ export default function Series() {
             <div>
               <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 4 }}>Fournisseur</div>
               <select value={form.fournisseur} onChange={e => setForm({ ...form, fournisseur: e.target.value })} style={inputStyle}>
-                <option>Pépinière interne</option>
-                <option>Desbos</option>
-                <option>Semis direct</option>
+                <OptionsFournisseurs valeur={form.fournisseur} />
               </select>
             </div>
             <div>
@@ -190,12 +229,35 @@ export default function Series() {
               <input type="number" min="5" step="5" value={form.longueur_metres}
                 onChange={e => setForm({ ...form, longueur_metres: parseInt(e.target.value) })} style={inputStyle} />
             </div>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 4 }}>Rangs</div>
+              <input type="number" min="1" value={form.rangs} onChange={e => setForm({ ...form, rangs: e.target.value })} style={inputStyle} />
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 4 }}>Espacement plants (cm)</div>
+              <input type="number" min="1" step="0.5" value={form.espacement_plants} onChange={e => setForm({ ...form, espacement_plants: e.target.value })} style={inputStyle} />
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 4 }}>Date au champ</div>
+              <input type="date" value={form.date_plantation}
+                onChange={e => setForm({ ...form, date_plantation: e.target.value, ...(e.target.value && { semaine_plantation: semaineIso(e.target.value), annee: Number(e.target.value.slice(0, 4)) }) })} style={inputStyle} />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+              <div>
+                <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 4 }}>1re récolte</div>
+                <input type="date" value={form.premiere_recolte} onChange={e => setForm({ ...form, premiere_recolte: e.target.value })} style={inputStyle} />
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 4 }}>Dernière récolte</div>
+                <input type="date" value={form.derniere_recolte} onChange={e => setForm({ ...form, derniere_recolte: e.target.value })} style={inputStyle} />
+              </div>
+            </div>
           </div>
 
           {legumeSelectionne && (
             <div style={{ background: 'var(--vert-pale)', border: '1px solid var(--vert)', borderRadius: 0, padding: '8px 12px', marginBottom: 16, fontSize: 12, color: 'var(--vert-fonce)' }}>
-              Nombre de plants calculé : <strong>{calculNbPlants(form.longueur_metres, legumeSelectionne)} plants</strong>
-              <span style={{ color: 'var(--encre-douce)', marginLeft: 8 }}>({legumeSelectionne.rangs} rangs · espacement {legumeSelectionne.espacement_plants}cm)</span>
+              Nombre de plants calculé : <strong>{calculNbPlants(form.longueur_metres, form.rangs, form.espacement_plants) || '—'} plants</strong>
+              <span style={{ color: 'var(--encre-douce)', marginLeft: 8 }}>({form.rangs || '?'} rangs · espacement {form.espacement_plants || '?'}cm)</span>
             </div>
           )}
 
@@ -295,10 +357,8 @@ export default function Series() {
                 </div>
                 <div>
                   <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Fournisseur</div>
-                  <select value={serieEnModif.fournisseur} onChange={e => setSerieEnModif({ ...serieEnModif, fournisseur: e.target.value })} style={inputStyle}>
-                    <option>Pépinière interne</option>
-                    <option>Desbos</option>
-                    <option>Semis direct</option>
+                  <select value={serieEnModif.fournisseur || ''} onChange={e => setSerieEnModif({ ...serieEnModif, fournisseur: e.target.value })} style={inputStyle}>
+                    <OptionsFournisseurs valeur={serieEnModif.fournisseur} />
                   </select>
                 </div>
                 <div>
@@ -311,6 +371,29 @@ export default function Series() {
                   <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Longueur (m)</div>
                   <input type="number" min="5" step="5" value={serieEnModif.longueur_metres}
                     onChange={e => setSerieEnModif({ ...serieEnModif, longueur_metres: parseInt(e.target.value) })} style={inputStyle} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Rangs</div>
+                  <input type="number" min="1" value={serieEnModif.rangs ?? ''} onChange={e => setSerieEnModif({ ...serieEnModif, rangs: e.target.value })} style={inputStyle} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Espacement plants (cm)</div>
+                  <input type="number" min="1" step="0.5" value={serieEnModif.espacement_plants ?? ''} onChange={e => setSerieEnModif({ ...serieEnModif, espacement_plants: e.target.value })} style={inputStyle} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Date au champ</div>
+                  <input type="date" value={serieEnModif.date_plantation || ''}
+                    onChange={e => setSerieEnModif({ ...serieEnModif, date_plantation: e.target.value, ...(e.target.value && { semaine_plantation: semaineIso(e.target.value) }) })} style={inputStyle} />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                  <div>
+                    <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>1re récolte</div>
+                    <input type="date" value={serieEnModif.premiere_recolte || ''} onChange={e => setSerieEnModif({ ...serieEnModif, premiere_recolte: e.target.value })} style={inputStyle} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Dernière récolte</div>
+                    <input type="date" value={serieEnModif.derniere_recolte || ''} onChange={e => setSerieEnModif({ ...serieEnModif, derniere_recolte: e.target.value })} style={inputStyle} />
+                  </div>
                 </div>
                 <div>
                   <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Notes</div>
@@ -335,8 +418,11 @@ export default function Series() {
                 <div style={{ fontSize: 11, color: 'var(--encre-pale)', marginTop: 2 }}>
                   {serie.semaine_plantation && `Sem. ${serie.semaine_plantation} · `}
                   {serie.longueur_metres}m
+                  {serie.rangs && ` · ${serie.rangs} rangs`}
                   {serie.nombre_plants && ` · ${serie.nombre_plants} plants`}
-                  {` · ${serie.fournisseur}`}
+                  {serie.fournisseur && ` · ${serie.fournisseur}`}
+                  {serie.sous_abri && ' · sous abri'}
+                  {serie.premiere_recolte && ` · récolte ${dateCourte(serie.premiere_recolte)} → ${dateCourte(serie.derniere_recolte)}`}
                 </div>
               </div>
               <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 0, background: serie.type === 'plant' ? 'var(--jaune-pale)' : 'var(--bleu-pale)', color: serie.type === 'plant' ? 'var(--ocre)' : 'var(--bleu)' }}>

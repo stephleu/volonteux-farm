@@ -7,7 +7,7 @@ const BLOCS_GROUPES = [
   { parent: 'A', sousBlocs: ['A1', 'A2'], type: 'ete' },
   { parent: 'B', sousBlocs: ['B1', 'B2', 'B3'], type: 'ete' },
   { parent: 'C', sousBlocs: ['C'], type: 'ete' },
-  { parent: 'D', sousBlocs: ['D1', 'D2'], type: 'hiver' },
+  { parent: 'D', sousBlocs: ['D'], type: 'hiver' },
   { parent: 'E', sousBlocs: ['E'], type: 'hiver' },
   { parent: 'F', sousBlocs: ['F1', 'F2'], type: 'hiver' },
   { parent: 'G', sousBlocs: ['G'], type: 'hiver' },

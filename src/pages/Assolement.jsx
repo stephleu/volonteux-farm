@@ -300,16 +300,16 @@ export default function Assolement() {
   return (
     <div style={{ display: 'flex', gap: 12, height: 'calc(100vh - 48px)' }}>
       <div style={{ flex: 1, overflow: 'auto' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, position: 'sticky', top: 0, background: '#f3f4f6', padding: '10px 0', zIndex: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, position: 'sticky', top: 0, background: 'var(--fond)', padding: '10px 0', zIndex: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <h1 style={{ fontSize: 18, fontWeight: 500, color: '#111' }}>Assolement</h1>
+            <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Assolement</h1>
             <select value={annee} onChange={e => setAnnee(parseInt(e.target.value))}
-              style={{ fontSize: 13, padding: '5px 10px', border: '1px solid #e5e7eb', borderRadius: 6 }}>
+              style={{ fontSize: 13, padding: '5px 10px', border: '1px solid var(--trait)', borderRadius: 0 }}>
               {[2024, 2025, 2026, 2027, 2028].map(a => <option key={a} value={a}>{a}</option>)}
             </select>
-            <div style={{ display: 'flex', border: '1px solid #e5e7eb', borderRadius: 6, overflow: 'hidden' }}>
+            <div style={{ display: 'flex', border: '1px solid var(--trait)', borderRadius: 0, overflow: 'hidden' }}>
               {['champ', 'serres'].map(v => (
-                <button key={v} onClick={() => setVue(v)} style={{ padding: '5px 12px', fontSize: 12, border: 'none', cursor: 'pointer', background: vue === v ? '#1D9E75' : '#f9fafb', color: vue === v ? '#fff' : '#6b7280' }}>
+                <button key={v} onClick={() => setVue(v)} style={{ padding: '5px 12px', fontSize: 12, border: 'none', cursor: 'pointer', background: vue === v ? 'var(--accent)' : 'var(--fond)', color: vue === v ? 'var(--papier)' : 'var(--encre-douce)' }}>
                   {v === 'champ' ? 'Plein champ' : 'Serres'}
                 </button>
               ))}
@@ -323,21 +323,21 @@ export default function Assolement() {
                 setModeSelection(!modeSelection)
                 setCulturesSelectionnees(new Set())
               }
-            }} style={{ fontSize: 12, padding: '5px 12px', border: '1px solid #e5e7eb', borderRadius: 6, cursor: 'pointer', background: modeSelection ? '#ef4444' : '#fff', color: modeSelection ? '#fff' : '#111' }}>
+            }} style={{ fontSize: 12, padding: '5px 12px', border: '1px solid var(--trait)', borderRadius: 0, cursor: 'pointer', background: modeSelection ? 'var(--rouge)' : 'var(--papier)', color: modeSelection ? 'var(--papier)' : 'var(--encre)' }}>
               {modeSelection ? (culturesSelectionnees.size > 0 ? `Retirer (${culturesSelectionnees.size})` : 'Annuler') : 'Sélection multiple'}
             </button>
-            <button onClick={() => setShowSeries(!showSeries)} style={{ fontSize: 12, padding: '5px 12px', border: '1px solid #e5e7eb', borderRadius: 6, cursor: 'pointer', background: showSeries ? '#1D9E75' : '#fff', color: showSeries ? '#fff' : '#111' }}>
+            <button onClick={() => setShowSeries(!showSeries)} style={{ fontSize: 12, padding: '5px 12px', border: '1px solid var(--trait)', borderRadius: 0, cursor: 'pointer', background: showSeries ? 'var(--accent)' : 'var(--papier)', color: showSeries ? 'var(--papier)' : 'var(--encre)' }}>
               {showSeries ? 'Masquer séries' : `Placer une série (${seriesDisponibles.length})`}
             </button>
             <button onClick={() => setOffsetMois(Math.max(0, offsetMois - 1))} disabled={offsetMois === 0}
-              style={{ border: '1px solid #e5e7eb', borderRadius: 6, padding: '5px 8px', cursor: 'pointer', background: '#fff' }}>
+              style={{ border: '1px solid var(--trait)', borderRadius: 0, padding: '5px 8px', cursor: 'pointer', background: 'var(--papier)' }}>
               <ChevronLeft size={14} />
             </button>
-            <span style={{ fontSize: 12, color: '#111', minWidth: 140, textAlign: 'center' }}>
+            <span style={{ fontSize: 12, color: 'var(--encre)', minWidth: 140, textAlign: 'center' }}>
               {moisAffiches[0]} — {moisAffiches[moisAffiches.length - 1]} 2026
             </span>
             <button onClick={() => setOffsetMois(Math.min(6, offsetMois + 1))} disabled={offsetMois === 6}
-              style={{ border: '1px solid #e5e7eb', borderRadius: 6, padding: '5px 8px', cursor: 'pointer', background: '#fff' }}>
+              style={{ border: '1px solid var(--trait)', borderRadius: 0, padding: '5px 8px', cursor: 'pointer', background: 'var(--papier)' }}>
               <ChevronRight size={14} />
             </button>
           </div>
@@ -348,12 +348,12 @@ export default function Assolement() {
             <div />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)' }}>
               {moisAffiches.map(m => (
-                <div key={m} style={{ fontSize: 11, color: '#6b7280', textAlign: 'center', borderLeft: '1px solid #e5e7eb' }}>{m}</div>
+                <div key={m} style={{ fontSize: 11, color: 'var(--encre-douce)', textAlign: 'center', borderLeft: '1px solid var(--trait)' }}>{m}</div>
               ))}
             </div>
           </div>
 
-          {loading && <p style={{ fontSize: 13, color: '#6b7280' }}>Chargement...</p>}
+          {loading && <p style={{ fontSize: 13, color: 'var(--encre-douce)' }}>Chargement...</p>}
 
           {blocsAffiches.map(bloc => {
             const planchesBloc = planches.filter(p => p.bloc_id === bloc.id)
@@ -361,10 +361,10 @@ export default function Assolement() {
             return (
               <div key={bloc.id} ref={el => refs.current[bloc.id] = el} style={{ marginBottom: 6 }}>
                 <div onClick={() => setOuverts(prev => ({ ...prev, [bloc.id]: !prev[bloc.id] }))}
-                  style={{ display: 'grid', gridTemplateColumns: '80px 1fr', alignItems: 'center', cursor: 'pointer', background: '#e5e7eb', borderRadius: 6, padding: '5px 8px', marginBottom: 3 }}>
-                  <span style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>Bloc {bloc.nom} {ouvert ? '▾' : '▸'}</span>
+                  style={{ display: 'grid', gridTemplateColumns: '80px 1fr', alignItems: 'center', cursor: 'pointer', background: 'var(--trait-leger)', borderRadius: 0, padding: '5px 8px', marginBottom: 3 }}>
+                  <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--encre)' }}>Bloc {bloc.nom} {ouvert ? '▾' : '▸'}</span>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)' }}>
-                    {moisAffiches.map(m => <div key={m} style={{ borderLeft: '1px solid #d1d5db', height: 18 }} />)}
+                    {moisAffiches.map(m => <div key={m} style={{ borderLeft: '1px solid var(--trait)', height: 18 }} />)}
                   </div>
                 </div>
 
@@ -377,12 +377,12 @@ export default function Assolement() {
                       onDragOver={e => e.preventDefault()}
                       onDrop={e => { e.preventDefault(); placerSerie(planche.id, dragSerie) }}
                     >
-                      <div style={{ fontSize: 11, color: '#6b7280', paddingTop: 4 }}>
+                      <div style={{ fontSize: 11, color: 'var(--encre-douce)', paddingTop: 4 }}>
                         {bloc.nom}-{String(planche.numero).padStart(2, '0')}
                       </div>
-                      <div style={{ position: 'relative', background: '#f3f4f6', borderRadius: 4, border: dragSerie ? '1px dashed #1D9E75' : '1px solid #e5e7eb', height: hauteur }}>
+                      <div style={{ position: 'relative', background: 'var(--fond)', borderRadius: 0, border: dragSerie ? '1px dashed var(--accent)' : '1px solid var(--trait)', height: hauteur }}>
                         {moisAffiches.map((m, i) => (
-                          <div key={m} style={{ position: 'absolute', left: `${(i / 6) * 100}%`, top: 0, bottom: 0, borderLeft: '1px solid #e5e7eb' }} />
+                          <div key={m} style={{ position: 'absolute', left: `${(i / 6) * 100}%`, top: 0, bottom: 0, borderLeft: '1px solid var(--trait)' }} />
                         ))}
                         {culturesPlanche.map((culture, i) => {
                           const semDeb = getSemaineDepuisDate(culture.date_plantation)
@@ -391,7 +391,7 @@ export default function Assolement() {
                           const leftPct = ((semDeb - semaineDebut) / (semaineFin - semaineDebut + 1)) * 100
                           const widthPct = ((semFin - semDeb) / (semaineFin - semaineDebut + 1)) * 100
                           if (leftPct > 100 || leftPct + widthPct < 0) return null
-                          const couleur = culture.legumes?.familles?.couleur || '#1D9E75'
+                          const couleur = culture.legumes?.familles?.couleur || '#9dca9a'
                           const estSelectionnee = cultureSelectionnee?.id === culture.id
                           const estCochee = culturesSelectionnees.has(culture.id)
                           const top = i * 26 + 2
@@ -421,15 +421,15 @@ export default function Assolement() {
                                 width: `${Math.min(100 - Math.max(0, leftPct), widthPct)}%`,
                                 top, height: 22,
                                 background: couleur + 'cc',
-                                borderRadius: 3,
+                                borderRadius: 0,
                                 display: 'flex', alignItems: 'center', paddingLeft: 4,
                                 cursor: modeSelection ? 'pointer' : 'grab',
-                                border: estCochee ? '2px solid #ef4444' : estSelectionnee ? '2px solid #111' : 'none',
+                                border: estCochee ? '2px solid var(--rouge)' : estSelectionnee ? '2px solid var(--encre)' : 'none',
                                 zIndex: estSelectionnee ? 5 : 1,
                                 overflow: 'hidden',
                                 opacity: estCochee ? 0.7 : 1,
                               }}>
-                              <span style={{ fontSize: 10, fontWeight: 500, color: '#fff', whiteSpace: 'nowrap' }}>
+                              <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--papier)', whiteSpace: 'nowrap' }}>
                                 {estCochee ? '✓ ' : ''}{culture.legumes?.nom}{culture.varietes?.nom ? ` · ${culture.varietes.nom}` : ''} · {culture.longueur_metres}m
                               </span>
                             </div>
@@ -446,12 +446,12 @@ export default function Assolement() {
       </div>
 
       {cultureSelectionnee && !modifCulture && !modeSelection && (
-        <div style={{ width: 220, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: 14, flexShrink: 0, alignSelf: 'flex-start', marginTop: 60 }}>
+        <div style={{ width: 220, background: 'var(--papier)', border: '1px solid var(--trait)', borderRadius: 0, padding: 14, flexShrink: 0, alignSelf: 'flex-start', marginTop: 60 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <span style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{cultureSelectionnee.legumes?.nom}</span>
-            <button onClick={() => setCultureSelectionnee(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}><X size={14} /></button>
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--encre)' }}>{cultureSelectionnee.legumes?.nom}</span>
+            <button onClick={() => setCultureSelectionnee(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--encre-pale)' }}><X size={14} /></button>
           </div>
-          <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 12 }}>
+          <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 12 }}>
             {cultureSelectionnee.varietes?.nom && <div>Variété : {cultureSelectionnee.varietes.nom}</div>}
             <div>Plantation : {cultureSelectionnee.date_plantation}</div>
             <div>Fin prévue : {cultureSelectionnee.date_fin_prevue}</div>
@@ -459,11 +459,11 @@ export default function Assolement() {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <button onClick={() => setModifCulture(cultureSelectionnee)}
-              style={{ width: '100%', padding: '7px', fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 6, cursor: 'pointer', background: '#f9fafb', color: '#111' }}>
+              style={{ width: '100%', padding: '7px', fontSize: 12, border: '1px solid var(--trait)', borderRadius: 0, cursor: 'pointer', background: 'var(--fond)', color: 'var(--encre)' }}>
               Modifier
             </button>
             <button onClick={() => retirerCulture(cultureSelectionnee.id)}
-              style={{ width: '100%', padding: '7px', fontSize: 12, border: '1px solid #fca5a5', borderRadius: 6, cursor: 'pointer', background: '#fef2f2', color: '#dc2626' }}>
+              style={{ width: '100%', padding: '7px', fontSize: 12, border: '1px solid var(--rouge-clair)', borderRadius: 0, cursor: 'pointer', background: 'var(--rouge-pale)', color: 'var(--rouge)' }}>
               Retirer
             </button>
           </div>
@@ -471,45 +471,45 @@ export default function Assolement() {
       )}
 
       {modifCulture && (
-        <div style={{ width: 240, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: 14, flexShrink: 0, alignSelf: 'flex-start', marginTop: 60 }}>
+        <div style={{ width: 240, background: 'var(--papier)', border: '1px solid var(--trait)', borderRadius: 0, padding: 14, flexShrink: 0, alignSelf: 'flex-start', marginTop: 60 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <span style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>Modifier</span>
-            <button onClick={() => setModifCulture(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}><X size={14} /></button>
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--encre)' }}>Modifier</span>
+            <button onClick={() => setModifCulture(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--encre-pale)' }}><X size={14} /></button>
           </div>
           <ModifForm culture={modifCulture} onSave={modifierCulture} onCancel={() => setModifCulture(null)} />
         </div>
       )}
 
       {showSeries && (
-        <div style={{ width: 180, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: 10, overflowY: 'auto', flexShrink: 0 }}>
-          <div style={{ fontSize: 12, fontWeight: 500, color: '#111', marginBottom: 6 }}>Séries à placer</div>
+        <div style={{ width: 180, background: 'var(--papier)', border: '1px solid var(--trait)', borderRadius: 0, padding: 10, overflowY: 'auto', flexShrink: 0 }}>
+          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--encre)', marginBottom: 6 }}>Séries à placer</div>
           <input
             value={rechercheSerie}
             onChange={e => setRechercheSerie(e.target.value)}
             placeholder="Rechercher..."
-            style={{ width: '100%', fontSize: 11, padding: '4px 7px', border: '1px solid #e5e7eb', borderRadius: 5, marginBottom: 6 }}
+            style={{ width: '100%', fontSize: 11, padding: '4px 7px', border: '1px solid var(--trait)', borderRadius: 0, marginBottom: 6 }}
           />
           <div style={{ display: 'flex', gap: 3, marginBottom: 6 }}>
             {[['recent', 'Récent'], ['alpha', 'A→Z'], ['semaine', 'Chrono']].map(([val, label]) => (
               <button key={val} onClick={() => setTriSeries(val)} style={{
-                flex: 1, padding: '2px 0', fontSize: 9, border: '1px solid #e5e7eb',
-                borderRadius: 4, cursor: 'pointer',
-                background: triSeries === val ? '#1D9E75' : '#f9fafb',
-                color: triSeries === val ? '#fff' : '#6b7280',
+                flex: 1, padding: '2px 0', fontSize: 9, border: '1px solid var(--trait)',
+                borderRadius: 0, cursor: 'pointer',
+                background: triSeries === val ? 'var(--accent)' : 'var(--fond)',
+                color: triSeries === val ? 'var(--papier)' : 'var(--encre-douce)',
               }}>{label}</button>
             ))}
           </div>
           {seriesDisponibles.length === 0 && (
-            <p style={{ fontSize: 11, color: '#9ca3af' }}>Aucune série</p>
+            <p style={{ fontSize: 11, color: 'var(--encre-pale)' }}>Aucune série</p>
           )}
           {seriesDisponibles.map(serie => {
-            const couleur = serie.legumes?.familles?.couleur || '#1D9E75'
+            const couleur = serie.legumes?.familles?.couleur || '#9dca9a'
             return (
               <div key={serie.id} draggable
                 onDragStart={() => setDragSerie(serie)}
                 onDragEnd={() => setDragSerie(null)}
-                style={{ padding: '4px 7px', marginBottom: 3, background: couleur + '22', border: `1px solid ${couleur}`, borderRadius: 5, cursor: 'grab', opacity: dragSerie?.id === serie.id ? 0.5 : 1 }}>
-                <div style={{ fontSize: 10, color: '#111', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                style={{ padding: '4px 7px', marginBottom: 3, background: couleur + '22', border: `1px solid ${couleur}`, borderRadius: 0, cursor: 'grab', opacity: dragSerie?.id === serie.id ? 0.5 : 1 }}>
+                <div style={{ fontSize: 10, color: 'var(--encre)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {serie.legumes?.nom} S{serie.semaine_plantation} · {serie.longueur_metres}m
                 </div>
               </div>
@@ -520,29 +520,29 @@ export default function Assolement() {
 
       {propositionDebord && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-          <div style={{ background: '#fff', borderRadius: 10, padding: 24, width: 340 }}>
-            <div style={{ fontSize: 15, fontWeight: 500, color: '#111', marginBottom: 12 }}>Débordement détecté</div>
-            <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 16, lineHeight: 1.6 }}>
+          <div style={{ background: 'var(--papier)', borderRadius: 0, padding: 24, width: 340 }}>
+            <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--encre)', marginBottom: 12 }}>Débordement détecté</div>
+            <div style={{ fontSize: 13, color: 'var(--encre-douce)', marginBottom: 16, lineHeight: 1.6 }}>
               La série <strong>{propositionDebord.serie.legumes?.nom}</strong> fait <strong>{propositionDebord.serie.longueur_metres}m</strong> mais il ne reste que <strong>{propositionDebord.metresPlanche}m</strong> disponibles.
               <br /><br />
               {propositionDebord.plancheSuivante
                 ? <>Les <strong>{propositionDebord.metresDebord}m</strong> restants seront placés sur les planches suivantes.</>
-                : <span style={{ color: '#dc2626' }}>⚠ Fin de bloc — impossible de reporter.</span>
+                : <span style={{ color: 'var(--rouge)' }}>⚠ Fin de bloc — impossible de reporter.</span>
               }
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => setPropositionDebord(null)}
-                style={{ flex: 1, padding: '8px', fontSize: 13, border: '1px solid #e5e7eb', borderRadius: 6, cursor: 'pointer', background: '#f9fafb' }}>
+                style={{ flex: 1, padding: '8px', fontSize: 13, border: '1px solid var(--trait)', borderRadius: 0, cursor: 'pointer', background: 'var(--fond)' }}>
                 Annuler
               </button>
               {propositionDebord.plancheSuivante && (
                 <button onClick={() => confirmerDebord(true)}
-                  style={{ flex: 1, padding: '8px', fontSize: 13, border: 'none', borderRadius: 6, cursor: 'pointer', background: '#1D9E75', color: '#fff', fontWeight: 500 }}>
+                  style={{ flex: 1, padding: '8px', fontSize: 13, border: 'none', borderRadius: 0, cursor: 'pointer', background: 'var(--accent)', color: 'var(--papier)', fontWeight: 500 }}>
                   Confirmer + reporter
                 </button>
               )}
               <button onClick={() => confirmerDebord(false)}
-                style={{ flex: 1, padding: '8px', fontSize: 13, border: '1px solid #e5e7eb', borderRadius: 6, cursor: 'pointer', background: '#fff' }}>
+                style={{ flex: 1, padding: '8px', fontSize: 13, border: '1px solid var(--trait)', borderRadius: 0, cursor: 'pointer', background: 'var(--papier)' }}>
                 {propositionDebord.metresPlanche}m seulement
               </button>
             </div>
@@ -563,32 +563,32 @@ function ModifForm({ culture, onSave, onCancel }) {
   return (
     <div>
       <div style={{ marginBottom: 8 }}>
-        <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 3 }}>Date plantation</div>
+        <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Date plantation</div>
         <input type="date" value={datePlantation} onChange={e => setDatePlantation(e.target.value)}
-          style={{ width: '100%', fontSize: 12, padding: '5px 7px', border: '1px solid #e5e7eb', borderRadius: 5 }} />
+          style={{ width: '100%', fontSize: 12, padding: '5px 7px', border: '1px solid var(--trait)', borderRadius: 0 }} />
       </div>
       <div style={{ marginBottom: 8 }}>
-        <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 3 }}>Date fin prévue</div>
+        <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Date fin prévue</div>
         <input type="date" value={dateFinPrevue} onChange={e => setDateFinPrevue(e.target.value)}
-          style={{ width: '100%', fontSize: 12, padding: '5px 7px', border: '1px solid #e5e7eb', borderRadius: 5 }} />
+          style={{ width: '100%', fontSize: 12, padding: '5px 7px', border: '1px solid var(--trait)', borderRadius: 0 }} />
       </div>
       <div style={{ marginBottom: 8 }}>
-        <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 3 }}>Longueur (m)</div>
+        <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Longueur (m)</div>
         <input type="number" value={longueur} onChange={e => setLongueur(parseInt(e.target.value))}
-          style={{ width: '100%', fontSize: 12, padding: '5px 7px', border: '1px solid #e5e7eb', borderRadius: 5 }} />
+          style={{ width: '100%', fontSize: 12, padding: '5px 7px', border: '1px solid var(--trait)', borderRadius: 0 }} />
       </div>
       <div style={{ marginBottom: 8 }}>
-        <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 3 }}>Type</div>
+        <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Type</div>
         <select value={type} onChange={e => setType(e.target.value)}
-          style={{ width: '100%', fontSize: 12, padding: '5px 7px', border: '1px solid #e5e7eb', borderRadius: 5 }}>
+          style={{ width: '100%', fontSize: 12, padding: '5px 7px', border: '1px solid var(--trait)', borderRadius: 0 }}>
           <option value="prevu">Prévu</option>
           <option value="reel">Réel</option>
         </select>
       </div>
       <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 3 }}>Statut</div>
+        <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Statut</div>
         <select value={statut} onChange={e => setStatut(e.target.value)}
-          style={{ width: '100%', fontSize: 12, padding: '5px 7px', border: '1px solid #e5e7eb', borderRadius: 5 }}>
+          style={{ width: '100%', fontSize: 12, padding: '5px 7px', border: '1px solid var(--trait)', borderRadius: 0 }}>
           <option value="en_culture">En culture</option>
           <option value="engrais_vert">Engrais vert</option>
           <option value="repos">Repos</option>
@@ -597,11 +597,11 @@ function ModifForm({ culture, onSave, onCancel }) {
       </div>
       <div style={{ display: 'flex', gap: 6 }}>
         <button onClick={onCancel}
-          style={{ flex: 1, padding: '7px', fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 6, cursor: 'pointer', background: '#f9fafb' }}>
+          style={{ flex: 1, padding: '7px', fontSize: 12, border: '1px solid var(--trait)', borderRadius: 0, cursor: 'pointer', background: 'var(--fond)' }}>
           Annuler
         </button>
         <button onClick={() => onSave(culture.id, { date_plantation: datePlantation, date_fin_prevue: dateFinPrevue, longueur_metres: longueur, type, statut })}
-          style={{ flex: 1, padding: '7px', fontSize: 12, border: 'none', borderRadius: 6, cursor: 'pointer', background: '#1D9E75', color: '#fff', fontWeight: 500 }}>
+          style={{ flex: 1, padding: '7px', fontSize: 12, border: 'none', borderRadius: 0, cursor: 'pointer', background: 'var(--accent)', color: 'var(--papier)', fontWeight: 500 }}>
           Sauvegarder
         </button>
       </div>

@@ -76,9 +76,9 @@ export default function TravailSol() {
 }
 
   const statutCouleur = (statut) => {
-    if (statut === 'prete') return { bg: '#f0fdf4', border: '#86efac', label: 'Prête', color: '#166534' }
-    if (statut === 'en_cours') return { bg: '#fffbeb', border: '#fcd34d', label: 'En cours', color: '#92400e' }
-    return { bg: '#f9fafb', border: '#e5e7eb', label: 'Non démarrée', color: '#6b7280' }
+    if (statut === 'prete') return { bg: 'var(--vert-pale)', border: 'var(--vert)', label: 'Prête', color: 'var(--vert-fonce)' }
+    if (statut === 'en_cours') return { bg: 'var(--jaune-pale)', border: 'var(--jaune)', label: 'En cours', color: 'var(--ocre)' }
+    return { bg: 'var(--fond)', border: 'var(--trait-leger)', label: 'Non démarrée', color: 'var(--encre-douce)' }
   }
 
   const blocsChamp = blocs.filter(b => b.type !== 'serre')
@@ -87,19 +87,19 @@ export default function TravailSol() {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 500, color: '#111' }}>Travail du sol</h1>
-          <p style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>Suivi des étapes tracteur</p>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Travail du sol</h1>
+          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>Suivi des étapes tracteur</p>
         </div>
-        <div style={{ display: 'flex', border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', border: '1px solid var(--trait)', borderRadius: 0, overflow: 'hidden' }}>
           {[['bloc', 'Vue par bloc'], ['planche', 'Vue par planche']].map(([v, label]) => (
-            <button key={v} onClick={() => setVue(v)} style={{ padding: '7px 14px', fontSize: 13, border: 'none', cursor: 'pointer', background: vue === v ? '#1D9E75' : '#f9fafb', color: vue === v ? '#fff' : '#6b7280' }}>
+            <button key={v} onClick={() => setVue(v)} style={{ padding: '7px 14px', fontSize: 13, border: 'none', cursor: 'pointer', background: vue === v ? 'var(--accent)' : 'var(--fond)', color: vue === v ? 'var(--papier)' : 'var(--encre-douce)' }}>
               {label}
             </button>
           ))}
         </div>
       </div>
 
-      {loading && <p style={{ fontSize: 13, color: '#6b7280' }}>Chargement...</p>}
+      {loading && <p style={{ fontSize: 13, color: 'var(--encre-douce)' }}>Chargement...</p>}
 
       {vue === 'bloc' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -110,59 +110,59 @@ export default function TravailSol() {
             const enCours = planchesBloc.filter(p => getStatutPlanche(p.id) === 'en_cours').length
 
             return (
-              <div key={bloc.id} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
+              <div key={bloc.id} style={{ background: 'var(--papier)', border: '1px solid var(--trait)', borderRadius: 0, overflow: 'hidden' }}>
                 <div onClick={() => setOuverts(prev => ({ ...prev, [bloc.id]: !prev[bloc.id] }))}
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', cursor: 'pointer' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <span style={{ fontSize: 15, fontWeight: 500, color: '#111' }}>Bloc {bloc.nom}</span>
-                    <span style={{ fontSize: 11, color: '#6b7280' }}>{planchesBloc.length} planches</span>
-                    {prets > 0 && <span style={{ fontSize: 11, background: '#f0fdf4', color: '#166534', border: '1px solid #86efac', borderRadius: 4, padding: '1px 6px' }}>{prets} prêtes</span>}
-                    {enCours > 0 && <span style={{ fontSize: 11, background: '#fffbeb', color: '#92400e', border: '1px solid #fcd34d', borderRadius: 4, padding: '1px 6px' }}>{enCours} en cours</span>}
+                    <span style={{ fontSize: 15, fontWeight: 500, color: 'var(--encre)' }}>Bloc {bloc.nom}</span>
+                    <span style={{ fontSize: 11, color: 'var(--encre-douce)' }}>{planchesBloc.length} planches</span>
+                    {prets > 0 && <span style={{ fontSize: 11, background: 'var(--vert-pale)', color: 'var(--vert-fonce)', border: '1px solid var(--vert)', borderRadius: 0, padding: '1px 6px' }}>{prets} prêtes</span>}
+                    {enCours > 0 && <span style={{ fontSize: 11, background: 'var(--jaune-pale)', color: 'var(--ocre)', border: '1px solid var(--jaune)', borderRadius: 0, padding: '1px 6px' }}>{enCours} en cours</span>}
                   </div>
                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
   {ouvert && (
     <button
       onClick={e => { e.stopPropagation(); if (window.confirm(`Effacer tout le travail du sol pour le bloc ${bloc.nom} ?`)) effacerBlocEntier(bloc.id) }}
-      style={{ fontSize: 11, padding: '3px 8px', border: '1px solid #fca5a5', borderRadius: 5, cursor: 'pointer', background: '#fef2f2', color: '#dc2626' }}>
+      style={{ fontSize: 11, padding: '3px 8px', border: '1px solid var(--rouge-clair)', borderRadius: 0, cursor: 'pointer', background: 'var(--rouge-pale)', color: 'var(--rouge)' }}>
       Effacer tout
     </button>
   )}
-  <span style={{ color: '#6b7280' }}>{ouvert ? '▾' : '▸'}</span>
+  <span style={{ color: 'var(--encre-douce)' }}>{ouvert ? '▾' : '▸'}</span>
 </div>
                 </div>
 
                 {ouvert && planchesBloc.length > 0 && (
-                  <div style={{ borderTop: '1px solid #e5e7eb', padding: '12px 16px' }}>
-                    <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 10 }}>
+                  <div style={{ borderTop: '1px solid var(--trait)', padding: '12px 16px' }}>
+                    <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 10 }}>
                       Cocher une étape ici la marque pour <strong>toutes les planches du bloc</strong>
                     </div>
                     <div style={{ overflowX: 'auto' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                         <thead>
                           <tr>
-                            <th style={{ padding: '6px 8px', textAlign: 'left', color: '#6b7280', fontWeight: 400, borderBottom: '1px solid #e5e7eb', minWidth: 80 }}>Étape</th>
+                            <th style={{ padding: '6px 8px', textAlign: 'left', color: 'var(--encre-douce)', fontWeight: 400, borderBottom: '1px solid var(--trait)', minWidth: 80 }}>Étape</th>
                             {ETAPES.map(e => (
-                              <th key={e} style={{ padding: '6px 4px', textAlign: 'center', color: '#6b7280', fontWeight: 400, borderBottom: '1px solid #e5e7eb' }}>
+                              <th key={e} style={{ padding: '6px 4px', textAlign: 'center', color: 'var(--encre-douce)', fontWeight: 400, borderBottom: '1px solid var(--trait)' }}>
                                 {ETAPES_LABELS[e]}
-                                {PASSAGES_MAX[e] && <div style={{ fontSize: 10, color: '#9ca3af' }}>×{PASSAGES_MAX[e]}</div>}
+                                {PASSAGES_MAX[e] && <div style={{ fontSize: 10, color: 'var(--encre-pale)' }}>×{PASSAGES_MAX[e]}</div>}
                               </th>
                             ))}
                           </tr>
                         </thead>
                         <tbody>
                           <tr>
-                            <td style={{ padding: '8px', fontSize: 11, color: '#111', fontWeight: 500 }}>Bloc entier</td>
+                            <td style={{ padding: '8px', fontSize: 11, color: 'var(--encre)', fontWeight: 500 }}>Bloc entier</td>
                             {ETAPES.map(e => {
                               const maxPassages = PASSAGES_MAX[e] || 1
                               return (
-                                <td key={e} style={{ padding: '4px', textAlign: 'center', borderBottom: '1px solid #f3f4f6' }}>
+                                <td key={e} style={{ padding: '4px', textAlign: 'center', borderBottom: '1px solid var(--trait-leger)' }}>
                                   <div style={{ display: 'flex', gap: 3, justifyContent: 'center' }}>
                                     {Array.from({ length: maxPassages }, (_, pi) => {
                                       const tousCoches = planchesBloc.every(p => getTravail(p.id, e, pi + 1)?.fait)
                                       return (
                                         <div key={pi} onClick={() => toggleBlocEntier(bloc.id, e, pi + 1)}
-                                          style={{ width: 20, height: 20, borderRadius: '50%', border: `1px solid ${tousCoches ? '#1D9E75' : '#d1d5db'}`, background: tousCoches ? '#1D9E75' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                          {tousCoches && <span style={{ color: '#fff', fontSize: 11 }}>✓</span>}
+                                          style={{ width: 20, height: 20, borderRadius: '50%', border: `1px solid ${tousCoches ? 'var(--accent)' : 'var(--trait-leger)'}`, background: tousCoches ? 'var(--accent)' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                          {tousCoches && <span style={{ color: 'var(--papier)', fontSize: 11 }}>✓</span>}
                                         </div>
                                       )
                                     })}
@@ -175,17 +175,17 @@ export default function TravailSol() {
                       </table>
                     </div>
 
-                    <div style={{ marginTop: 12, fontSize: 11, color: '#6b7280', marginBottom: 6 }}>
+                    <div style={{ marginTop: 12, fontSize: 11, color: 'var(--encre-douce)', marginBottom: 6 }}>
                       Détail par planche — cliquez sur une case pour ajuster individuellement
                     </div>
                     <div style={{ overflowX: 'auto' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                         <thead>
                           <tr>
-                            <th style={{ padding: '4px 8px', textAlign: 'left', color: '#9ca3af', fontWeight: 400, borderBottom: '1px solid #f3f4f6', minWidth: 70 }}>Planche</th>
-                            <th style={{ padding: '4px', textAlign: 'center', color: '#9ca3af', fontWeight: 400, borderBottom: '1px solid #f3f4f6' }}>Statut</th>
+                            <th style={{ padding: '4px 8px', textAlign: 'left', color: 'var(--encre-pale)', fontWeight: 400, borderBottom: '1px solid var(--trait-leger)', minWidth: 70 }}>Planche</th>
+                            <th style={{ padding: '4px', textAlign: 'center', color: 'var(--encre-pale)', fontWeight: 400, borderBottom: '1px solid var(--trait-leger)' }}>Statut</th>
                             {ETAPES.map(e => (
-                              <th key={e} style={{ padding: '4px', textAlign: 'center', color: '#9ca3af', fontWeight: 400, borderBottom: '1px solid #f3f4f6' }}>{ETAPES_LABELS[e]}</th>
+                              <th key={e} style={{ padding: '4px', textAlign: 'center', color: 'var(--encre-pale)', fontWeight: 400, borderBottom: '1px solid var(--trait-leger)' }}>{ETAPES_LABELS[e]}</th>
                             ))}
                           </tr>
                         </thead>
@@ -195,23 +195,23 @@ export default function TravailSol() {
                             const { bg, border, label, color } = statutCouleur(statut)
                             return (
                               <tr key={planche.id}>
-                                <td style={{ padding: '5px 8px', fontWeight: 500, color: '#111', borderBottom: '1px solid #f3f4f6' }}>
+                                <td style={{ padding: '5px 8px', fontWeight: 500, color: 'var(--encre)', borderBottom: '1px solid var(--trait-leger)' }}>
                                   {bloc.nom}-{String(planche.numero).padStart(2, '0')}
                                 </td>
-                                <td style={{ padding: '4px', textAlign: 'center', borderBottom: '1px solid #f3f4f6' }}>
-                                  <span style={{ fontSize: 10, background: bg, border: `1px solid ${border}`, color, borderRadius: 3, padding: '1px 5px' }}>{label}</span>
+                                <td style={{ padding: '4px', textAlign: 'center', borderBottom: '1px solid var(--trait-leger)' }}>
+                                  <span style={{ fontSize: 10, background: bg, border: `1px solid ${border}`, color, borderRadius: 0, padding: '1px 5px' }}>{label}</span>
                                 </td>
                                 {ETAPES.map(e => {
                                   const maxPassages = PASSAGES_MAX[e] || 1
                                   return (
-                                    <td key={e} style={{ padding: '4px', textAlign: 'center', borderBottom: '1px solid #f3f4f6' }}>
+                                    <td key={e} style={{ padding: '4px', textAlign: 'center', borderBottom: '1px solid var(--trait-leger)' }}>
                                       <div style={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
                                         {Array.from({ length: maxPassages }, (_, pi) => {
                                           const t = getTravail(planche.id, e, pi + 1)
                                           return (
                                             <div key={pi} onClick={() => toggleTravail(planche.id, e, pi + 1)}
-                                              style={{ width: 16, height: 16, borderRadius: '50%', border: `1px solid ${t?.fait ? '#1D9E75' : '#d1d5db'}`, background: t?.fait ? '#1D9E75' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                              {t?.fait && <span style={{ color: '#fff', fontSize: 9 }}>✓</span>}
+                                              style={{ width: 16, height: 16, borderRadius: '50%', border: `1px solid ${t?.fait ? 'var(--accent)' : 'var(--trait-leger)'}`, background: t?.fait ? 'var(--accent)' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                              {t?.fait && <span style={{ color: 'var(--papier)', fontSize: 9 }}>✓</span>}
                                             </div>
                                           )
                                         })}
@@ -234,38 +234,38 @@ export default function TravailSol() {
       )}
 
       {vue === 'planche' && (
-        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: 16 }}>
+        <div style={{ background: 'var(--papier)', border: '1px solid var(--trait)', borderRadius: 0, padding: 16 }}>
           <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
             {blocsChamp.map(b => (
               <button key={b.id} onClick={() => setBlocSelectionne(b.id === blocSelectionne ? null : b.id)}
-                style={{ padding: '5px 12px', fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 6, cursor: 'pointer', background: blocSelectionne === b.id ? '#1D9E75' : '#f9fafb', color: blocSelectionne === b.id ? '#fff' : '#111' }}>
+                style={{ padding: '5px 12px', fontSize: 12, border: '1px solid var(--trait)', borderRadius: 0, cursor: 'pointer', background: blocSelectionne === b.id ? 'var(--accent)' : 'var(--fond)', color: blocSelectionne === b.id ? 'var(--papier)' : 'var(--encre)' }}>
                 Bloc {b.nom}
               </button>
             ))}
           </div>
-          {!blocSelectionne && <p style={{ fontSize: 13, color: '#9ca3af' }}>Sélectionnez un bloc pour voir les planches</p>}
+          {!blocSelectionne && <p style={{ fontSize: 13, color: 'var(--encre-pale)' }}>Sélectionnez un bloc pour voir les planches</p>}
           {blocSelectionne && planches.filter(p => p.bloc_id === blocSelectionne).map(planche => {
             const statut = getStatutPlanche(planche.id)
             const { bg, border, label, color } = statutCouleur(statut)
             const bloc = blocs.find(b => b.id === blocSelectionne)
             return (
-              <div key={planche.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: '1px solid #f3f4f6' }}>
-                <div style={{ fontSize: 12, fontWeight: 500, color: '#111', minWidth: 70 }}>
+              <div key={planche.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: '1px solid var(--trait-leger)' }}>
+                <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--encre)', minWidth: 70 }}>
                   {bloc?.nom}-{String(planche.numero).padStart(2, '0')}
                 </div>
-                <span style={{ fontSize: 10, background: bg, border: `1px solid ${border}`, color, borderRadius: 3, padding: '1px 5px', minWidth: 70, textAlign: 'center' }}>{label}</span>
+                <span style={{ fontSize: 10, background: bg, border: `1px solid ${border}`, color, borderRadius: 0, padding: '1px 5px', minWidth: 70, textAlign: 'center' }}>{label}</span>
                 {ETAPES.map(e => {
                   const maxPassages = PASSAGES_MAX[e] || 1
                   return (
                     <div key={e} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                      <div style={{ fontSize: 9, color: '#9ca3af' }}>{ETAPES_LABELS[e]}</div>
+                      <div style={{ fontSize: 9, color: 'var(--encre-pale)' }}>{ETAPES_LABELS[e]}</div>
                       <div style={{ display: 'flex', gap: 2 }}>
                         {Array.from({ length: maxPassages }, (_, pi) => {
                           const t = getTravail(planche.id, e, pi + 1)
                           return (
                             <div key={pi} onClick={() => toggleTravail(planche.id, e, pi + 1)}
-                              style={{ width: 18, height: 18, borderRadius: '50%', border: `1px solid ${t?.fait ? '#1D9E75' : '#d1d5db'}`, background: t?.fait ? '#1D9E75' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              {t?.fait && <span style={{ color: '#fff', fontSize: 9 }}>✓</span>}
+                              style={{ width: 18, height: 18, borderRadius: '50%', border: `1px solid ${t?.fait ? 'var(--accent)' : 'var(--trait-leger)'}`, background: t?.fait ? 'var(--accent)' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              {t?.fait && <span style={{ color: 'var(--papier)', fontSize: 9 }}>✓</span>}
                             </div>
                           )
                         })}

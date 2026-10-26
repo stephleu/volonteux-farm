@@ -22,31 +22,36 @@ const nav = [
 export default function Sidebar() {
   return (
     <aside style={{
-      width: 210, minWidth: 210, height: '100vh',
-      borderRight: '1px solid #e5e7eb',
-      background: '#f9fafb', display: 'flex', flexDirection: 'column'
+      width: 230, minWidth: 230, height: '100vh',
+      borderRight: '2.5px solid var(--trait)',
+      background: 'var(--papier)', display: 'flex', flexDirection: 'column'
     }}>
-      <div style={{ padding: '16px', borderBottom: '1px solid #e5e7eb' }}>
-        <div style={{ fontWeight: 500, fontSize: 14, color: '#111' }}>Les Volonteux</div>
-        <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>Gestion maraîchère · 2026</div>
+      <div style={{ padding: '18px 16px 14px', borderBottom: '2.5px solid var(--trait)' }}>
+        <div style={{ fontWeight: 700, fontSize: 22, fontStretch: '75%', lineHeight: 1, textTransform: 'uppercase', color: 'var(--encre)' }}>
+          Les<br />Volonteux
+        </div>
+        <div style={{ height: 7, borderTop: '2px solid var(--trait)', borderBottom: '2px solid var(--trait)', margin: '10px 0 8px' }} />
+        <div style={{ fontFamily: 'var(--script)', fontStyle: 'italic', fontSize: 18, lineHeight: 1.1, color: 'var(--encre)' }}>Gestion maraîchère</div>
       </div>
-      <nav style={{ padding: '8px 0', flex: 1 }}>
+      <nav style={{ padding: '8px 0', flex: 1, overflowY: 'auto' }}>
         {nav.map(({ to, icon: Icon, label, parent }) => (
           <NavLink key={to} to={to} end style={({ isActive }) => ({
             display: 'flex', alignItems: 'center', gap: 10,
-            padding: parent ? '7px 14px 7px 28px' : '9px 14px',
-            fontSize: parent ? 12 : 13, textDecoration: 'none',
-            borderLeft: isActive ? '2px solid #1D9E75' : '2px solid transparent',
-            background: isActive ? '#fff' : 'transparent',
-            color: isActive ? '#111' : '#6b7280',
-            fontWeight: isActive ? 500 : 400,
+            padding: parent ? '6px 14px 6px 30px' : '9px 14px',
+            fontSize: parent ? 11 : 12, textDecoration: 'none',
+            textTransform: parent ? 'none' : 'uppercase',
+            fontStretch: '75%', letterSpacing: parent ? 0 : '0.05em',
+            borderLeft: isActive ? '4px solid var(--encre)' : '4px solid transparent',
+            background: isActive ? 'var(--jaune)' : 'transparent',
+            color: isActive ? 'var(--encre)' : 'var(--encre-douce)',
+            fontWeight: isActive || !parent ? 700 : 400,
           })}>
             <Icon size={parent ? 13 : 15} />
             {label}
           </NavLink>
         ))}
       </nav>
-      <div style={{ padding: 12, borderTop: '1px solid #e5e7eb', fontSize: 11, color: '#9ca3af' }}>
+      <div style={{ padding: '10px 14px', borderTop: '2.5px solid var(--trait)', background: 'var(--vert)', fontSize: 11, fontWeight: 700, fontStretch: '75%', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--encre)' }}>
         Saison 2026
       </div>
     </aside>

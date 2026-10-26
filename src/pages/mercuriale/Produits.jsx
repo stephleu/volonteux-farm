@@ -102,61 +102,61 @@ export default function MercurialeProduits() {
     setShowForm(true)
   }
 
-  const inputStyle = { width: '100%', fontSize: 12, padding: '5px 8px', border: '1px solid #e5e7eb', borderRadius: 6 }
+  const inputStyle = { width: '100%', fontSize: 12, padding: '5px 8px', border: '1px solid var(--trait)', borderRadius: 0 }
 
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 500, color: '#111' }}>Produits</h1>
-          <p style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>{produits.length} produits au catalogue</p>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Produits</h1>
+          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>{produits.length} produits au catalogue</p>
         </div>
         <button onClick={() => { resetForm(); setEditProduit(null); setShowForm(true) }}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#1D9E75', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
+          style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: 'var(--papier)', border: 'none', borderRadius: 0, padding: '8px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
           <Plus size={14} /> Nouveau produit
         </button>
       </div>
 
       {showForm && (
-        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: 20, marginBottom: 16 }}>
+        <div style={{ background: 'var(--papier)', border: '1px solid var(--trait)', borderRadius: 0, padding: 20, marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
             <span style={{ fontSize: 14, fontWeight: 500 }}>{editProduit ? 'Modifier le produit' : 'Nouveau produit'}</span>
-            <button onClick={() => { setShowForm(false); setEditProduit(null) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}><X size={16} /></button>
+            <button onClick={() => { setShowForm(false); setEditProduit(null) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--encre-pale)' }}><X size={16} /></button>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
             <div>
-              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 3 }}>Nom</div>
+              <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Nom</div>
               <input value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })} style={inputStyle} placeholder="Carotte" />
             </div>
             <div>
-              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 3 }}>Variété</div>
+              <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Variété</div>
               <input value={form.variete} onChange={e => setForm({ ...form, variete: e.target.value })} style={inputStyle} placeholder="Optionnel" />
             </div>
             <div>
-              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 3 }}>Unité</div>
+              <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Unité</div>
               <select value={form.unite} onChange={e => setForm({ ...form, unite: e.target.value })} style={inputStyle}>
                 <option value="piece">Pièce</option>
                 <option value="kg">Kg</option>
               </select>
             </div>
             <div>
-              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 3 }}>Nb par colis</div>
+              <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Nb par colis</div>
               <input type="number" value={form.nombre_par_colis} onChange={e => setForm({ ...form, nombre_par_colis: e.target.value })} style={inputStyle} />
             </div>
             <div>
-              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 3 }}>Prix HT (€)</div>
+              <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Prix HT (€)</div>
               <input type="number" step="0.01" value={form.prix_ht} onChange={e => handlePrixHT(e.target.value)} style={inputStyle} />
             </div>
             <div>
-              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 3 }}>Prix -20% HT (€)</div>
+              <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Prix -20% HT (€)</div>
               <input type="number" step="0.01" value={form.prix_remise} onChange={e => setForm({ ...form, prix_remise: e.target.value })} style={inputStyle} />
             </div>
             <div>
-              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 3 }}>Prix TTC (€)</div>
+              <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Prix TTC (€)</div>
               <input type="number" step="0.01" value={form.prix_ttc} onChange={e => handlePrixTTC(e.target.value)} style={inputStyle} />
             </div>
             <div>
-              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 3 }}>Quantité dispo (colis)</div>
+              <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Quantité dispo (colis)</div>
               <input type="number" value={form.quantite_dispo} onChange={e => setForm({ ...form, quantite_dispo: e.target.value })} style={inputStyle} />
             </div>
             <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: 2 }}>
@@ -167,16 +167,16 @@ export default function MercurialeProduits() {
             </div>
           </div>
           <button onClick={handleSave} disabled={!form.nom || !form.prix_ht}
-            style={{ background: form.nom && form.prix_ht ? '#1D9E75' : '#e5e7eb', color: form.nom && form.prix_ht ? '#fff' : '#9ca3af', border: 'none', borderRadius: 6, padding: '8px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
+            style={{ background: form.nom && form.prix_ht ? 'var(--accent)' : 'var(--trait-leger)', color: form.nom && form.prix_ht ? 'var(--papier)' : 'var(--encre-pale)', border: 'none', borderRadius: 0, padding: '8px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
             {editProduit ? 'Mettre à jour' : 'Créer le produit'}
           </button>
         </div>
       )}
 
-      {loading && <p style={{ fontSize: 13, color: '#6b7280' }}>Chargement...</p>}
+      {loading && <p style={{ fontSize: 13, color: 'var(--encre-douce)' }}>Chargement...</p>}
 
-      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 80px 80px 80px 80px 100px', padding: '8px 14px', background: '#f9fafb', borderBottom: '1px solid #e5e7eb', fontSize: 11, color: '#6b7280', fontWeight: 500 }}>
+      <div style={{ background: 'var(--papier)', border: '1px solid var(--trait)', borderRadius: 0, overflow: 'hidden' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 80px 80px 80px 80px 100px', padding: '8px 14px', background: 'var(--fond)', borderBottom: '1px solid var(--trait)', fontSize: 11, color: 'var(--encre-douce)', fontWeight: 500 }}>
           <div>Produit</div>
           <div style={{ textAlign: 'center' }}>Unité</div>
           <div style={{ textAlign: 'center' }}>Colis</div>
@@ -187,35 +187,35 @@ export default function MercurialeProduits() {
           <div style={{ textAlign: 'center' }}>Actions</div>
         </div>
         {produits.map(p => (
-          <div key={p.id} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 80px 80px 80px 80px 100px', padding: '10px 14px', borderBottom: '1px solid #f3f4f6', alignItems: 'center', opacity: p.disponible ? 1 : 0.5 }}>
+          <div key={p.id} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 80px 80px 80px 80px 100px', padding: '10px 14px', borderBottom: '1px solid var(--trait-leger)', alignItems: 'center', opacity: p.disponible ? 1 : 0.5 }}>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>{p.nom}{p.variete ? ` · ${p.variete}` : ''}</div>
-              {!p.disponible && <span style={{ fontSize: 10, color: '#ef4444' }}>Indisponible</span>}
+              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--encre)' }}>{p.nom}{p.variete ? ` · ${p.variete}` : ''}</div>
+              {!p.disponible && <span style={{ fontSize: 10, color: 'var(--rouge)' }}>Indisponible</span>}
             </div>
-            <div style={{ textAlign: 'center', fontSize: 12, color: '#6b7280' }}>{p.unite === 'kg' ? 'Kg' : 'Pièce'}</div>
-            <div style={{ textAlign: 'center', fontSize: 12, color: '#6b7280' }}>{p.nombre_par_colis}</div>
+            <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--encre-douce)' }}>{p.unite === 'kg' ? 'Kg' : 'Pièce'}</div>
+            <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--encre-douce)' }}>{p.nombre_par_colis}</div>
             <div style={{ textAlign: 'right', fontSize: 12 }}>{p.prix_ht?.toFixed(2)} €</div>
-            <div style={{ textAlign: 'right', fontSize: 12, color: '#1D9E75' }}>{p.prix_remise?.toFixed(2)} €</div>
+            <div style={{ textAlign: 'right', fontSize: 12, color: 'var(--accent)' }}>{p.prix_remise?.toFixed(2)} €</div>
             <div style={{ textAlign: 'right', fontSize: 12 }}>{p.prix_ttc?.toFixed(2)} €</div>
             <div style={{ textAlign: 'center', fontSize: 12 }}>{p.quantite_dispo}</div>
             <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
               <button onClick={() => toggleDispo(p)}
-                style={{ padding: '3px 8px', fontSize: 11, border: `1px solid ${p.disponible ? '#86efac' : '#e5e7eb'}`, borderRadius: 5, cursor: 'pointer', background: p.disponible ? '#f0fdf4' : '#f9fafb', color: p.disponible ? '#166534' : '#6b7280' }}>
+                style={{ padding: '3px 8px', fontSize: 11, border: `1px solid ${p.disponible ? 'var(--vert)' : 'var(--trait-leger)'}`, borderRadius: 0, cursor: 'pointer', background: p.disponible ? 'var(--vert-pale)' : 'var(--fond)', color: p.disponible ? 'var(--vert-fonce)' : 'var(--encre-douce)' }}>
                 {p.disponible ? <Check size={11} /> : '—'}
               </button>
               <button onClick={() => ouvrirEdit(p)}
-                style={{ padding: '3px 8px', fontSize: 11, border: '1px solid #e5e7eb', borderRadius: 5, cursor: 'pointer', background: '#f9fafb', color: '#6b7280' }}>
+                style={{ padding: '3px 8px', fontSize: 11, border: '1px solid var(--trait)', borderRadius: 0, cursor: 'pointer', background: 'var(--fond)', color: 'var(--encre-douce)' }}>
                 Modifier
               </button>
               <button onClick={() => supprimerProduit(p.id)}
-                style={{ padding: '3px 6px', fontSize: 11, border: '1px solid #fca5a5', borderRadius: 5, cursor: 'pointer', background: '#fef2f2', color: '#ef4444' }}>
+                style={{ padding: '3px 6px', fontSize: 11, border: '1px solid var(--rouge-clair)', borderRadius: 0, cursor: 'pointer', background: 'var(--rouge-pale)', color: 'var(--rouge)' }}>
                 <X size={11} />
               </button>
             </div>
           </div>
         ))}
         {!loading && produits.length === 0 && (
-          <div style={{ padding: 40, textAlign: 'center', fontSize: 13, color: '#9ca3af' }}>
+          <div style={{ padding: 40, textAlign: 'center', fontSize: 13, color: 'var(--encre-pale)' }}>
             Aucun produit — cliquez sur "Nouveau produit" pour commencer
           </div>
         )}

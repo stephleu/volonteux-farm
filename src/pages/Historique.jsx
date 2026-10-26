@@ -16,23 +16,23 @@ const BLOCS_GROUPES = [
 ]
 
 const COULEURS_ROTATION = {
-  'Ratatouille': '#E24B4A',
-  'Petit maraîchage': '#1D9E75',
+  'Ratatouille': 'var(--rouge)',
+  'Petit maraîchage': 'var(--accent)',
   'P. de t. primeur': '#EF9F27',
-  'Poireaux': '#378ADD',
+  'Poireaux': 'var(--bleu)',
   'P. de t. conserve': '#9B7FD4',
   'Courge': '#E8873A',
   'Choux': '#8B5E8A',
   'Carotte primeur': '#A0735A',
-  'Butternut': '#E24B4A',
+  'Butternut': 'var(--rouge)',
 }
 
 function getCouleur(description) {
-  if (!description) return '#9ca3af'
+  if (!description) return 'var(--encre-pale)'
   for (const [key, couleur] of Object.entries(COULEURS_ROTATION)) {
     if (description.includes(key)) return couleur
   }
-  return '#9ca3af'
+  return 'var(--encre-pale)'
 }
 
 export default function Historique() {
@@ -68,31 +68,31 @@ export default function Historique() {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 500, color: '#111' }}>Historique des rotations</h1>
-          <p style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>2021 → 2030</p>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Historique des rotations</h1>
+          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>2021 → 2030</p>
         </div>
-        <div style={{ display: 'flex', border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', border: '1px solid var(--trait)', borderRadius: 0, overflow: 'hidden' }}>
           {[['grille', 'Grille'], ['annee', 'Par année'], ['conformite', 'Conformité']].map(([v, label]) => (
-            <button key={v} onClick={() => setVue(v)} style={{ padding: '7px 14px', fontSize: 13, border: 'none', cursor: 'pointer', background: vue === v ? '#1D9E75' : '#f9fafb', color: vue === v ? '#fff' : '#6b7280' }}>
+            <button key={v} onClick={() => setVue(v)} style={{ padding: '7px 14px', fontSize: 13, border: 'none', cursor: 'pointer', background: vue === v ? 'var(--accent)' : 'var(--fond)', color: vue === v ? 'var(--papier)' : 'var(--encre-douce)' }}>
               {label}
             </button>
           ))}
         </div>
       </div>
 
-      {loading && <p style={{ fontSize: 13, color: '#6b7280' }}>Chargement...</p>}
+      {loading && <p style={{ fontSize: 13, color: 'var(--encre-douce)' }}>Chargement...</p>}
 
       {vue === 'grille' && (
-        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'auto' }}>
+        <div style={{ background: 'var(--papier)', border: '1px solid var(--trait)', borderRadius: 0, overflow: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
-              <tr style={{ background: '#f9fafb' }}>
-                <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 500, color: '#111', borderBottom: '1px solid #e5e7eb', minWidth: 50 }}>Année</th>
+              <tr style={{ background: 'var(--fond)' }}>
+                <th style={{ padding: '10px 14px', textAlign: 'left', fontWeight: 500, color: 'var(--encre)', borderBottom: '1px solid var(--trait)', minWidth: 50 }}>Année</th>
                 {BLOCS_GROUPES.map(g => (
-                  <th key={g.parent} style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 500, color: '#111', borderBottom: '1px solid #e5e7eb', minWidth: 100 }}>
+                  <th key={g.parent} style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 500, color: 'var(--encre)', borderBottom: '1px solid var(--trait)', minWidth: 100 }}>
                     Bloc {g.parent}
                     {g.sousBlocs.length > 1 && (
-                      <div style={{ fontSize: 10, color: '#9ca3af', fontWeight: 400 }}>
+                      <div style={{ fontSize: 10, color: 'var(--encre-pale)', fontWeight: 400 }}>
                         {g.sousBlocs.join(', ')}
                       </div>
                     )}
@@ -102,23 +102,23 @@ export default function Historique() {
             </thead>
             <tbody>
               {ANNEES.map(annee => (
-                <tr key={annee} style={{ background: annee === 2026 ? '#f0fdf4' : 'transparent' }}>
-                  <td style={{ padding: '8px 14px', fontWeight: annee === 2026 ? 600 : 400, color: annee === 2026 ? '#1D9E75' : '#111', borderBottom: '1px solid #f3f4f6' }}>
+                <tr key={annee} style={{ background: annee === 2026 ? 'var(--vert-pale)' : 'transparent' }}>
+                  <td style={{ padding: '8px 14px', fontWeight: annee === 2026 ? 600 : 400, color: annee === 2026 ? 'var(--accent)' : 'var(--encre)', borderBottom: '1px solid var(--trait-leger)' }}>
                     {annee} {annee === 2026 && '←'}
                   </td>
                   {BLOCS_GROUPES.map(groupe => {
                     const rotation = getRotationGroupe(groupe, annee)
                     const couleur = rotation ? getCouleur(rotation.description) : null
                     return (
-                      <td key={groupe.parent} style={{ padding: '6px 4px', textAlign: 'center', borderBottom: '1px solid #f3f4f6', borderLeft: '1px solid #f3f4f6' }}>
+                      <td key={groupe.parent} style={{ padding: '6px 4px', textAlign: 'center', borderBottom: '1px solid var(--trait-leger)', borderLeft: '1px solid var(--trait-leger)' }}>
                         {rotation ? (
-                          <div style={{ background: couleur + '22', border: `1px solid ${couleur}`, borderRadius: 4, padding: '3px 5px', fontSize: 10, color: '#111', lineHeight: 1.3 }}>
+                          <div style={{ background: couleur + '22', border: `1px solid ${couleur}`, borderRadius: 0, padding: '3px 5px', fontSize: 10, color: 'var(--encre)', lineHeight: 1.3 }}>
                             {rotation.description.split(' · ').map((d, i) => (
                               <div key={i}>{d}</div>
                             ))}
                           </div>
                         ) : (
-                          <span style={{ color: '#e5e7eb' }}>—</span>
+                          <span style={{ color: 'var(--trait-leger)' }}>—</span>
                         )}
                       </td>
                     )
@@ -135,7 +135,7 @@ export default function Historique() {
           <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
             {ANNEES.map(a => (
               <button key={a} onClick={() => setAnneeSelectionnee(a)}
-                style={{ padding: '5px 12px', fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 6, cursor: 'pointer', background: anneeSelectionnee === a ? '#1D9E75' : '#f9fafb', color: anneeSelectionnee === a ? '#fff' : '#111', fontWeight: a === 2026 ? 600 : 400 }}>
+                style={{ padding: '5px 12px', fontSize: 12, border: '1px solid var(--trait)', borderRadius: 0, cursor: 'pointer', background: anneeSelectionnee === a ? 'var(--accent)' : 'var(--fond)', color: anneeSelectionnee === a ? 'var(--papier)' : 'var(--encre)', fontWeight: a === 2026 ? 600 : 400 }}>
                 {a}
               </button>
             ))}
@@ -143,17 +143,17 @@ export default function Historique() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
             {BLOCS_GROUPES.map(groupe => {
               const rotation = getRotationGroupe(groupe, anneeSelectionnee)
-              const couleur = rotation ? getCouleur(rotation.description) : '#e5e7eb'
+              const couleur = rotation ? getCouleur(rotation.description) : 'var(--trait-leger)'
               return (
-                <div key={groupe.parent} style={{ background: couleur + '22', border: `1px solid ${couleur}`, borderRadius: 8, padding: '12px 14px' }}>
-                  <div style={{ fontSize: 14, fontWeight: 500, color: '#111', marginBottom: 4 }}>
+                <div key={groupe.parent} style={{ background: couleur + '22', border: `1px solid ${couleur}`, borderRadius: 0, padding: '12px 14px' }}>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--encre)', marginBottom: 4 }}>
                     Bloc {groupe.parent}
-                    <span style={{ fontSize: 11, color: '#9ca3af', fontWeight: 400, marginLeft: 6 }}>
+                    <span style={{ fontSize: 11, color: 'var(--encre-pale)', fontWeight: 400, marginLeft: 6 }}>
                       {groupe.sousBlocs.join(' + ')}
                     </span>
                   </div>
-                  <div style={{ fontSize: 12, color: '#444', lineHeight: 1.5 }}>
-                    {rotation ? rotation.description.split(' · ').map((d, i) => <div key={i}>{d}</div>) : <span style={{ color: '#9ca3af' }}>Non défini</span>}
+                  <div style={{ fontSize: 12, color: 'var(--encre-douce)', lineHeight: 1.5 }}>
+                    {rotation ? rotation.description.split(' · ').map((d, i) => <div key={i}>{d}</div>) : <span style={{ color: 'var(--encre-pale)' }}>Non défini</span>}
                   </div>
                 </div>
               )
@@ -163,12 +163,12 @@ export default function Historique() {
       )}
 
       {vue === 'conformite' && (
-        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
-          <div style={{ padding: '10px 14px', borderBottom: '1px solid #e5e7eb', fontSize: 13, fontWeight: 500, color: '#111' }}>
+        <div style={{ background: 'var(--papier)', border: '1px solid var(--trait)', borderRadius: 0, overflow: 'hidden' }}>
+          <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--trait)', fontSize: 13, fontWeight: 500, color: 'var(--encre)' }}>
             Vérification des intervalles de rotation
           </div>
           <div style={{ padding: 14 }}>
-            <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 14 }}>
+            <div style={{ fontSize: 12, color: 'var(--encre-douce)', marginBottom: 14 }}>
               Blocs A/B/C → rotation 3 ans minimum · Blocs D/E/F/G/H → rotation 5 ans minimum
             </div>
             {BLOCS_GROUPES.filter(g => g.type !== 'bonus').map(groupe => {
@@ -194,12 +194,12 @@ export default function Historique() {
               }
 
               return (
-                <div key={groupe.parent} style={{ marginBottom: 10, padding: '10px 12px', background: conflits.length > 0 ? '#fef2f2' : '#f0fdf4', border: `1px solid ${conflits.length > 0 ? '#fca5a5' : '#86efac'}`, borderRadius: 6 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: '#111', marginBottom: conflits.length > 0 ? 6 : 0 }}>
+                <div key={groupe.parent} style={{ marginBottom: 10, padding: '10px 12px', background: conflits.length > 0 ? 'var(--rouge-pale)' : 'var(--vert-pale)', border: `1px solid ${conflits.length > 0 ? 'var(--rouge-clair)' : 'var(--vert)'}`, borderRadius: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--encre)', marginBottom: conflits.length > 0 ? 6 : 0 }}>
                     Bloc {groupe.parent} ({groupe.sousBlocs.join(', ')}) {conflits.length === 0 ? '✓ Conforme' : `✗ ${conflits.length} conflit(s)`}
                   </div>
                   {conflits.map((c, i) => (
-                    <div key={i} style={{ fontSize: 12, color: '#dc2626' }}>
+                    <div key={i} style={{ fontSize: 12, color: 'var(--rouge)' }}>
                       {c.culture} : {c.annee1} → {c.annee2} ({c.intervalle} ans, min. {rotationRequise} ans)
                     </div>
                   ))}

@@ -10,37 +10,33 @@ function getSemainesPrepa(semaine) {
 }
 
 export default function Dashboard() {
-  const [blocs, setBlocs] = useState([])
   const [series, setSeries] = useState([])
   const [fertilisations, setFertilisations] = useState([])
   const [traitements, setTraitements] = useState([])
-  const [travaux, setTravaux] = useState([])
-  const [planches, setPlanches] = useState([])
+  const [commandes, setCommandes] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => { fetchData() }, [])
 
   async function fetchData() {
-    const [{ data: b }, { data: s }, { data: f }, { data: t }, { data: tr }, { data: p }] = await Promise.all([
-      supabase.from('blocs').select('*').order('nom'),
+    const [{ data: s }, { data: f }, { data: t }, { data: c }] = await Promise.all([
       supabase.from('series').select('*, legumes(nom, familles(couleur))').order('semaine_plantation'),
       supabase.from('serie_fertilisations').select('*, series(nom, semaine_plantation, longueur_metres, legumes(nom))'),
       supabase.from('serie_traitements').select('*, series(nom, semaine_plantation, legumes(nom)), types_traitement(nom)'),
-      supabase.from('travail_sol').select('*'),
-      supabase.from('planches').select('*'),
+      supabase.from('mercuriale_commandes')
+        .select('*, mercuriale_epiceries(nom), mercuriale_lignes(*, mercuriale_produits(nom, variete, unite, nombre_par_colis))')
+        .in('statut', ['en_attente', 'confirmee'])
+        .order('date_commande', { ascending: false }),
     ])
-    setBlocs(b || [])
     setSeries(s || [])
     setFertilisations(f || [])
     setTraitements(t || [])
-    setTravaux(tr || [])
-    setPlanches(p || [])
+    setCommandes(c || [])
     setLoading(false)
   }
 
   const seriesImminentes = series.filter(s =>
-    s.semaine_plantation >= SEMAINE_COURANTE &&
-    s.semaine_plantation <= SEMAINE_COURANTE + 2
+    s.semaine_plantation === SEMAINE_COURANTE
   )
 
   const alertesPrepa = series.filter(s => {
@@ -48,6 +44,9 @@ export default function Dashboard() {
     const debutPrepa = s.semaine_plantation - getSemainesPrepa(s.semaine_plantation)
     return debutPrepa <= SEMAINE_COURANTE + 1 && debutPrepa >= SEMAINE_COURANTE - 1
   })
+
+  // Grouper les alertes prépa par semaine de plantation
+  const semaisnesPrepaGroupees = [...new Set(alertesPrepa.map(s => s.semaine_plantation))].sort((a, b) => a - b)
 
   const alertesFerti = fertilisations.filter(f => {
     const sem = (f.series?.semaine_plantation || 0) + f.semaines_apres_plantation
@@ -59,81 +58,80 @@ export default function Dashboard() {
     return sem >= SEMAINE_COURANTE - 1 && sem <= SEMAINE_COURANTE + 2
   })
 
-  const planchesPretes = planches.filter(p => {
-    const etapes = ['broyer', 'fumier', 'covercrop', 'sous_soleuse', 'cultibutte', 'granules', 'vibroplanche']
-    const travPlanche = travaux.filter(t => t.planche_id === p.id && t.fait)
-    return travPlanche.length >= etapes.length
-  }).length
-
-  const blocsChamp = blocs.filter(b => b.type !== 'serre')
-  const blocsSerre = blocs.filter(b => b.type === 'serre')
-
   const totalAlertes = alertesPrepa.length + alertesFerti.length + alertesTraitement.length
+  const statutLabel = { en_attente: 'En attente', confirmee: 'Confirmée' }
+  const statutCouleur = { en_attente: '#fff09e', confirmee: '#9dca9a' }
 
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 500, color: '#111' }}>Tableau de bord</h1>
-        <p style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>Semaine {SEMAINE_COURANTE} · saison 2026</p>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Tableau de bord</h1>
+        <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>Semaine {SEMAINE_COURANTE} · saison 2026</p>
       </div>
 
-      {loading && <p style={{ fontSize: 13, color: '#6b7280' }}>Chargement...</p>}
+      {loading && <p style={{ fontSize: 13, color: 'var(--encre-douce)' }}>Chargement...</p>}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 20 }}>
-        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: '12px 14px' }}>
-          <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>Blocs plein champ</div>
-          <div style={{ fontSize: 24, fontWeight: 500, color: '#111' }}>{blocsChamp.length}</div>
+      {/* COMMANDES EN COURS */}
+      {commandes.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--encre)', marginBottom: 10 }}>
+            Commandes en cours · {commandes.length}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {commandes.map(commande => (
+              <div key={commande.id} style={{ background: 'var(--papier)', border: '1px solid var(--trait)', borderRadius: 0, overflow: 'hidden' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--fond)', borderBottom: '1px solid var(--trait)' }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--encre)' }}>{commande.mercuriale_epiceries?.nom}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 11, color: 'var(--encre-douce)' }}>{new Date(commande.date_commande).toLocaleDateString('fr-FR')}</span>
+                    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 0, background: statutCouleur[commande.statut] + '44', color: 'var(--encre)' }}>
+                      {statutLabel[commande.statut]}
+                    </span>
+                  </div>
+                </div>
+                <div style={{ padding: '0 14px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 80px', padding: '6px 0', borderBottom: '1px solid var(--trait-leger)', fontSize: 11, color: 'var(--encre-pale)', fontWeight: 500 }}>
+                    <span>Produit</span>
+                    <span style={{ textAlign: 'center' }}>Unité / colis</span>
+                    <span style={{ textAlign: 'right' }}>Qté colis</span>
+                  </div>
+                  {(commande.mercuriale_lignes || []).map((l, i) => {
+                    const p = l.mercuriale_produits
+                    return (
+                      <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 120px 80px', padding: '6px 0', borderBottom: '1px solid var(--trait-leger)', fontSize: 12 }}>
+                        <span style={{ color: 'var(--encre)' }}>{p?.nom}{p?.variete ? ` · ${p.variete}` : ''}</span>
+                        <span style={{ textAlign: 'center', color: 'var(--encre-douce)' }}>{p?.nombre_par_colis} {p?.unite === 'kg' ? 'kg' : 'pièces'}</span>
+                        <span style={{ textAlign: 'right', fontWeight: 500, color: 'var(--encre)' }}>{l.quantite_colis}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: '12px 14px' }}>
-          <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>Serres</div>
-          <div style={{ fontSize: 24, fontWeight: 500, color: '#111' }}>{blocsSerre.length}</div>
-        </div>
-        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: '12px 14px' }}>
-          <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>Planches prêtes</div>
-          <div style={{ fontSize: 24, fontWeight: 500, color: '#1D9E75' }}>{planchesPretes}</div>
-        </div>
-        <div style={{ background: totalAlertes > 0 ? '#fffbeb' : '#fff', border: `1px solid ${totalAlertes > 0 ? '#fcd34d' : '#e5e7eb'}`, borderRadius: 8, padding: '12px 14px' }}>
-          <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>Alertes cette semaine</div>
-          <div style={{ fontSize: 24, fontWeight: 500, color: totalAlertes > 0 ? '#d97706' : '#111' }}>{totalAlertes}</div>
-        </div>
-      </div>
+      )}
 
+      {/* ALERTES */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <div>
           {alertesPrepa.length > 0 && (
             <div style={{ marginBottom: 14 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                <Tractor size={14} color="#d97706" />
-                <span style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>Préparation sol urgente</span>
+                <Tractor size={14} color="#9a6a00" />
+                <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--encre)' }}>Préparation sol urgente</span>
               </div>
-              {alertesPrepa.map((serie, i) => (
-                <div key={i} style={{ display: 'flex', gap: 10, padding: '9px 12px', background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8, marginBottom: 6 }}>
-                  <AlertTriangle size={14} color="#d97706" style={{ flexShrink: 0, marginTop: 1 }} />
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 500, color: '#111' }}>{serie.legumes?.nom}</div>
-                    <div style={{ fontSize: 11, color: '#6b7280' }}>
-                      Plantation sem. {serie.semaine_plantation} · Démarrer prépa avant sem. {serie.semaine_plantation - getSemainesPrepa(serie.semaine_plantation)}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {seriesImminentes.length > 0 && (
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                <Bell size={14} color="#3b82f6" />
-                <span style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>Plantations imminentes</span>
-              </div>
-              {seriesImminentes.map((serie, i) => {
-                const couleur = serie.legumes?.familles?.couleur || '#1D9E75'
+              {semaisnesPrepaGroupees.map(sem => {
+                const seriesSem = alertesPrepa.filter(s => s.semaine_plantation === sem)
+                const blocs = [...new Set(seriesSem.map(s => s.legumes?.nom))].join(', ')
                 return (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, marginBottom: 6 }}>
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: couleur, flexShrink: 0 }} />
+                  <div key={sem} style={{ display: 'flex', gap: 10, padding: '9px 12px', background: 'var(--jaune-pale)', border: '1px solid var(--jaune)', borderRadius: 0, marginBottom: 6 }}>
+                    <AlertTriangle size={14} color="#9a6a00" style={{ flexShrink: 0, marginTop: 1 }} />
                     <div>
-                      <div style={{ fontSize: 12, fontWeight: 500, color: '#111' }}>{serie.legumes?.nom}</div>
-                      <div style={{ fontSize: 11, color: '#6b7280' }}>Semaine {serie.semaine_plantation} · {serie.longueur_metres}m</div>
+                      <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--encre)' }}>
+                        Plantation sem. {sem} · prépa avant sem. {sem - getSemainesPrepa(sem)}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--encre-douce)' }}>{seriesSem.length} série{seriesSem.length > 1 ? 's' : ''} concernée{seriesSem.length > 1 ? 's' : ''}</div>
                     </div>
                   </div>
                 )
@@ -141,8 +139,29 @@ export default function Dashboard() {
             </div>
           )}
 
+          {seriesImminentes.length > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                <Bell size={14} color="#1a3e76" />
+                <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--encre)' }}>Plantations cette semaine</span>
+              </div>
+              <div style={{ background: 'var(--bleu-pale)', border: '1px solid var(--bleu-clair)', borderRadius: 0, padding: '8px 12px' }}>
+                {seriesImminentes.map((serie, i) => {
+                  const couleur = serie.legumes?.familles?.couleur || '#9dca9a'
+                  return (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', borderBottom: i < seriesImminentes.length - 1 ? '1px solid var(--bleu-pale)' : 'none' }}>
+                      <div style={{ width: 7, height: 7, borderRadius: '50%', background: couleur, flexShrink: 0 }} />
+                      <span style={{ fontSize: 12, color: 'var(--encre)', flex: 1 }}>{serie.legumes?.nom}</span>
+                      <span style={{ fontSize: 11, color: 'var(--encre-douce)' }}>{serie.longueur_metres}m</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {alertesPrepa.length === 0 && seriesImminentes.length === 0 && !loading && (
-            <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: 16, fontSize: 13, color: '#166534' }}>
+            <div style={{ background: 'var(--vert-pale)', border: '1px solid var(--vert)', borderRadius: 0, padding: 16, fontSize: 13, color: 'var(--vert-fonce)' }}>
               ✓ Aucune alerte plantation cette semaine
             </div>
           )}
@@ -152,13 +171,13 @@ export default function Dashboard() {
           {alertesFerti.length > 0 && (
             <div style={{ marginBottom: 14 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                <Sprout size={14} color="#1D9E75" />
-                <span style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>Fertilisations à faire</span>
+                <Sprout size={14} color="#3f7a3b" />
+                <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--encre)' }}>Fertilisations à faire</span>
               </div>
               {alertesFerti.map((f, i) => (
-                <div key={i} style={{ padding: '9px 12px', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, marginBottom: 6 }}>
-                  <div style={{ fontSize: 12, fontWeight: 500, color: '#111' }}>{f.series?.legumes?.nom}</div>
-                  <div style={{ fontSize: 11, color: '#6b7280' }}>
+                <div key={i} style={{ padding: '9px 12px', background: 'var(--vert-pale)', border: '1px solid var(--vert)', borderRadius: 0, marginBottom: 6 }}>
+                  <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--encre)' }}>{f.series?.legumes?.nom}</div>
+                  <div style={{ fontSize: 11, color: 'var(--encre-douce)' }}>
                     Sem. {(f.series?.semaine_plantation || 0) + f.semaines_apres_plantation} · {f.dose_kg_ha} kg/ha
                   </div>
                 </div>
@@ -170,12 +189,12 @@ export default function Dashboard() {
             <div style={{ marginBottom: 14 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                 <Shield size={14} color="#8b5cf6" />
-                <span style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>Traitements à faire</span>
+                <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--encre)' }}>Traitements à faire</span>
               </div>
               {alertesTraitement.map((t, i) => (
-                <div key={i} style={{ padding: '9px 12px', background: '#fdf4ff', border: '1px solid #e9d5ff', borderRadius: 8, marginBottom: 6 }}>
-                  <div style={{ fontSize: 12, fontWeight: 500, color: '#111' }}>{t.series?.legumes?.nom}</div>
-                  <div style={{ fontSize: 11, color: '#6b7280' }}>
+                <div key={i} style={{ padding: '9px 12px', background: '#fdf4ff', border: '1px solid #e9d5ff', borderRadius: 0, marginBottom: 6 }}>
+                  <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--encre)' }}>{t.series?.legumes?.nom}</div>
+                  <div style={{ fontSize: 11, color: 'var(--encre-douce)' }}>
                     Sem. {(t.series?.semaine_plantation || 0) + t.semaines_apres_plantation} · {t.types_traitement?.nom}
                   </div>
                 </div>
@@ -184,7 +203,7 @@ export default function Dashboard() {
           )}
 
           {alertesFerti.length === 0 && alertesTraitement.length === 0 && !loading && (
-            <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8, padding: 16, fontSize: 13, color: '#166534' }}>
+            <div style={{ background: 'var(--vert-pale)', border: '1px solid var(--vert)', borderRadius: 0, padding: 16, fontSize: 13, color: 'var(--vert-fonce)' }}>
               ✓ Aucune fertilisation ni traitement urgent
             </div>
           )}

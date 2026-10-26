@@ -128,44 +128,44 @@ export default function MerculialeCommandes() {
     w.print()
   }
 
-  const statutCouleur = { en_attente: '#fcd34d', confirmee: '#86efac', livree: '#e5e7eb' }
+  const statutCouleur = { en_attente: '#fff09e', confirmee: '#9dca9a', livree: '#d6d3cc' }
   const statutLabel = { en_attente: 'En attente', confirmee: 'Confirmée', livree: 'Livrée' }
-  const inputStyle = { width: '100%', fontSize: 12, padding: '5px 8px', border: '1px solid #e5e7eb', borderRadius: 6 }
+  const inputStyle = { width: '100%', fontSize: 12, padding: '5px 8px', border: '1px solid var(--trait)', borderRadius: 0 }
 
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 500, color: '#111' }}>Commandes</h1>
-          <p style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>{commandes.filter(c => c.statut === 'en_attente').length} en attente · {commandes.length} total</p>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Commandes</h1>
+          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>{commandes.filter(c => c.statut === 'en_attente').length} en attente · {commandes.length} total</p>
         </div>
         <button onClick={() => setShowForm(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#1D9E75', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
+          style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: 'var(--papier)', border: 'none', borderRadius: 0, padding: '8px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
           <Plus size={14} /> Nouvelle commande
         </button>
       </div>
 
       {showForm && (
-        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: 20, marginBottom: 16 }}>
+        <div style={{ background: 'var(--papier)', border: '1px solid var(--trait)', borderRadius: 0, padding: 20, marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
             <span style={{ fontSize: 14, fontWeight: 500 }}>Nouvelle commande</span>
-            <button onClick={() => setShowForm(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}><X size={16} /></button>
+            <button onClick={() => setShowForm(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--encre-pale)' }}><X size={16} /></button>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
             <div>
-              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 3 }}>Épicerie</div>
+              <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Épicerie</div>
               <select value={form.epicerie_id} onChange={e => setForm({ ...form, epicerie_id: e.target.value })} style={inputStyle}>
                 <option value="">-- Choisir --</option>
                 {epiceries.map(e => <option key={e.id} value={e.id}>{e.nom}</option>)}
               </select>
             </div>
             <div>
-              <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 3 }}>Notes</div>
+              <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Notes</div>
               <input value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} style={inputStyle} placeholder="Optionnel" />
             </div>
           </div>
 
-          <div style={{ fontSize: 12, fontWeight: 500, color: '#111', marginBottom: 8 }}>Produits</div>
+          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--encre)', marginBottom: 8 }}>Produits</div>
           {lignes.map((ligne, i) => (
             <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
               <div style={{ flex: 2 }}>
@@ -179,55 +179,55 @@ export default function MerculialeCommandes() {
               </div>
               {lignes.length > 1 && (
                 <button onClick={() => setLignes(lignes.filter((_, j) => j !== i))}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}><X size={14} /></button>
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--rouge)' }}><X size={14} /></button>
               )}
             </div>
           ))}
           <button onClick={() => setLignes([...lignes, { produit_id: '', quantite_colis: 1 }])}
-            style={{ fontSize: 12, color: '#1D9E75', background: 'none', border: '1px solid #86efac', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', marginBottom: 14 }}>
+            style={{ fontSize: 12, color: 'var(--accent)', background: 'none', border: '1px solid var(--vert)', borderRadius: 0, padding: '4px 10px', cursor: 'pointer', marginBottom: 14 }}>
             + Ajouter un produit
           </button>
 
           <div>
             <button onClick={handleSave} disabled={!form.epicerie_id}
-              style={{ background: form.epicerie_id ? '#1D9E75' : '#e5e7eb', color: form.epicerie_id ? '#fff' : '#9ca3af', border: 'none', borderRadius: 6, padding: '8px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
+              style={{ background: form.epicerie_id ? 'var(--accent)' : 'var(--trait-leger)', color: form.epicerie_id ? 'var(--papier)' : 'var(--encre-pale)', border: 'none', borderRadius: 0, padding: '8px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
               Créer la commande
             </button>
           </div>
         </div>
       )}
 
-      {loading && <p style={{ fontSize: 13, color: '#6b7280' }}>Chargement...</p>}
+      {loading && <p style={{ fontSize: 13, color: 'var(--encre-douce)' }}>Chargement...</p>}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {commandes.map(commande => (
-          <div key={commande.id} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
+          <div key={commande.id} style={{ background: 'var(--papier)', border: '1px solid var(--trait)', borderRadius: 0, overflow: 'hidden' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', cursor: 'pointer' }}
               onClick={() => setCommandeSelectionnee(commandeSelectionnee?.id === commande.id ? null : commande)}>
               <div style={{ width: 10, height: 10, borderRadius: '50%', background: statutCouleur[commande.statut], flexShrink: 0 }} />
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 500, color: '#111' }}>{commande.mercuriale_epiceries?.nom}</div>
-                <div style={{ fontSize: 12, color: '#6b7280' }}>
+                <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--encre)' }}>{commande.mercuriale_epiceries?.nom}</div>
+                <div style={{ fontSize: 12, color: 'var(--encre-douce)' }}>
                   {new Date(commande.date_commande).toLocaleDateString('fr-FR')} · {commande.mercuriale_lignes?.length || 0} produit(s) · {totalCommande(commande)} € HT
                 </div>
               </div>
-              <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 4, background: statutCouleur[commande.statut] + '44', color: '#111' }}>
+              <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 0, background: statutCouleur[commande.statut] + '44', color: 'var(--encre)' }}>
                 {statutLabel[commande.statut]}
               </span>
               <button onClick={e => { e.stopPropagation(); imprimerBL(commande) }}
-                style={{ padding: '5px 10px', fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 6, cursor: 'pointer', background: '#f9fafb', display: 'flex', alignItems: 'center', gap: 4 }}>
+                style={{ padding: '5px 10px', fontSize: 12, border: '1px solid var(--trait)', borderRadius: 0, cursor: 'pointer', background: 'var(--fond)', display: 'flex', alignItems: 'center', gap: 4 }}>
                 <Printer size={12} /> BL
               </button>
             </div>
 
             {commandeSelectionnee?.id === commande.id && (
-              <div style={{ borderTop: '1px solid #f3f4f6', padding: '12px 16px' }}>
+              <div style={{ borderTop: '1px solid var(--trait-leger)', padding: '12px 16px' }}>
                 {(commande.mercuriale_lignes || []).map((l, i) => {
                   const p = l.mercuriale_produits
                   return (
-                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderBottom: '1px solid #f9fafb' }}>
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderBottom: '1px solid var(--trait-leger)' }}>
                       <span>{p?.nom}{p?.variete ? ` · ${p.variete}` : ''}</span>
-                      <span style={{ color: '#6b7280' }}>{l.quantite_colis} colis × {p?.nombre_par_colis} {p?.unite === 'kg' ? 'kg' : 'pièces'}</span>
+                      <span style={{ color: 'var(--encre-douce)' }}>{l.quantite_colis} colis × {p?.nombre_par_colis} {p?.unite === 'kg' ? 'kg' : 'pièces'}</span>
                       <span>{(l.quantite_colis * (p?.prix_ht || 0) * (p?.nombre_par_colis || 1)).toFixed(2)} € HT</span>
                     </div>
                   )
@@ -235,18 +235,18 @@ export default function MerculialeCommandes() {
                 <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                   {commande.statut === 'en_attente' && (
                     <button onClick={() => changerStatut(commande.id, 'confirmee')}
-                      style={{ padding: '6px 12px', fontSize: 12, border: 'none', borderRadius: 6, cursor: 'pointer', background: '#1D9E75', color: '#fff' }}>
+                      style={{ padding: '6px 12px', fontSize: 12, border: 'none', borderRadius: 0, cursor: 'pointer', background: 'var(--accent)', color: 'var(--papier)' }}>
                       Confirmer
                     </button>
                   )}
                   {commande.statut === 'confirmee' && (
                     <button onClick={() => changerStatut(commande.id, 'livree')}
-                      style={{ padding: '6px 12px', fontSize: 12, border: 'none', borderRadius: 6, cursor: 'pointer', background: '#3b82f6', color: '#fff' }}>
+                      style={{ padding: '6px 12px', fontSize: 12, border: 'none', borderRadius: 0, cursor: 'pointer', background: 'var(--bleu)', color: 'var(--papier)' }}>
                       Marquer livrée
                     </button>
                   )}
                   <button onClick={() => supprimerCommande(commande.id)}
-                    style={{ padding: '6px 12px', fontSize: 12, border: '1px solid #fca5a5', borderRadius: 6, cursor: 'pointer', background: '#fef2f2', color: '#ef4444' }}>
+                    style={{ padding: '6px 12px', fontSize: 12, border: '1px solid var(--rouge-clair)', borderRadius: 0, cursor: 'pointer', background: 'var(--rouge-pale)', color: 'var(--rouge)' }}>
                     Supprimer
                   </button>
                 </div>
@@ -255,7 +255,7 @@ export default function MerculialeCommandes() {
           </div>
         ))}
         {!loading && commandes.length === 0 && (
-          <div style={{ padding: 40, textAlign: 'center', fontSize: 13, color: '#9ca3af' }}>
+          <div style={{ padding: 40, textAlign: 'center', fontSize: 13, color: 'var(--encre-pale)' }}>
             Aucune commande pour l'instant
           </div>
         )}

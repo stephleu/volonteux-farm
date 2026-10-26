@@ -1,111 +1,85 @@
+/* Identité reprise de la boutique Épices Volonteux (étiquettes « Stickers Piments ») :
+   papier blanc, encre noire, fonds jaune / vert / bleu, mono condensée en capitales,
+   doubles filets, angles droits. */
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  --papier: #fffefe;
+  --fond: #f5f3ee;
+  --encre: #222121;
+  --encre-douce: #5d5a55;
+  --encre-pale: #8a867f;
+  --trait: #222121;
+  --trait-leger: #e3e0d8;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  --jaune: #fff09e;
+  --jaune-pale: #fffbe0;
+  --ocre: #7a5600;
+  --vert: #9dca9a;
+  --vert-pale: #e8f3e7;
+  --vert-fonce: #2f5e2c;
+  --bleu: #1a3e76;
+  --bleu-clair: #a9bbd8;
+  --bleu-pale: #e4eaf4;
+  --rouge: #a3281b;
+  --rouge-clair: #e3a69d;
+  --rouge-pale: #fbeceb;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  --accent: var(--bleu);
 
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+  --mono: 'Martian Mono', ui-monospace, Menlo, monospace;
+  --script: 'Instrument Serif', Georgia, serif;
+
+  color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
+* { box-sizing: border-box; }
 
 body {
   margin: 0;
-}
-
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-}
-
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
-}
-
-code,
-.counter {
+  background: var(--papier);
+  color: var(--encre);
   font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+  font-stretch: 87.5%;
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+h1, h2, h3 {
+  font-family: var(--mono);
+  font-stretch: 75%;
+  font-weight: 700;
+  text-transform: uppercase;
+  line-height: 1.05;
+  letter-spacing: 0.01em;
 }
+
+/* Double filet sous les titres de page, comme sur les étiquettes */
+main h1 {
+  padding-bottom: 10px;
+  border-bottom: 6px double var(--trait);
+  display: inline-block;
+  min-width: min(100%, 22rem);
+}
+
+a { color: inherit; }
+
+button, input, select, textarea {
+  font-family: inherit;
+  font-stretch: inherit;
+  color: inherit;
+}
+button { cursor: pointer; }
+input, select, textarea { background: var(--papier); }
+input:focus, select:focus, textarea:focus, button:focus-visible {
+  outline: 3px solid var(--jaune);
+  outline-offset: 0;
+}
+
+table { border-collapse: collapse; }
+th {
+  font-stretch: 75%;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+::selection { background: var(--jaune); color: var(--encre); }

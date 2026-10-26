@@ -176,16 +176,16 @@ export default function MerculialeEtiquettes() {
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 500, color: '#111' }}>Étiquettes</h1>
-        <p style={{ fontSize: 13, color: '#6b7280', marginTop: 4 }}>Génère un PDF 4×2 pouces · une étiquette par colis</p>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Étiquettes</h1>
+        <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>Génère un PDF 4×2 pouces · une étiquette par colis</p>
       </div>
 
-      {loading && <p style={{ fontSize: 13, color: '#6b7280' }}>Chargement...</p>}
+      {loading && <p style={{ fontSize: 13, color: 'var(--encre-douce)' }}>Chargement...</p>}
 
-      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: 20, marginBottom: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, color: '#111', marginBottom: 10 }}>Sélectionner une commande</div>
+      <div style={{ background: 'var(--papier)', border: '1px solid var(--trait)', borderRadius: 0, padding: 20, marginBottom: 16 }}>
+        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--encre)', marginBottom: 10 }}>Sélectionner une commande</div>
         <select value={commandeSelectionnee} onChange={e => setCommandeSelectionnee(e.target.value)}
-          style={{ width: '100%', fontSize: 13, padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: 6, marginBottom: 14 }}>
+          style={{ width: '100%', fontSize: 13, padding: '8px 10px', border: '1px solid var(--trait)', borderRadius: 0, marginBottom: 14 }}>
           <option value="">-- Choisir une commande --</option>
           {commandes.map(c => (
             <option key={c.id} value={c.id}>
@@ -197,14 +197,14 @@ export default function MerculialeEtiquettes() {
         {commande && (
           <div>
             <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 12, fontWeight: 500, color: '#111', marginBottom: 8 }}>Détail des étiquettes</div>
+              <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--encre)', marginBottom: 8 }}>Détail des étiquettes</div>
               {(commande.mercuriale_lignes || []).map((l, i) => {
                 const p = l.mercuriale_produits
                 return (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '6px 0', borderBottom: '1px solid #f3f4f6' }}>
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '6px 0', borderBottom: '1px solid var(--trait-leger)' }}>
                     <span>{p?.nom}{p?.variete ? ` · ${p.variete}` : ''}</span>
-                    <span style={{ color: '#6b7280' }}>{l.quantite_colis} colis × {p?.nombre_par_colis} {p?.unite === 'kg' ? 'kg' : 'pièces'}</span>
-                    <span style={{ color: '#1D9E75', fontWeight: 500 }}>{l.quantite_colis} étiquette{l.quantite_colis > 1 ? 's' : ''}</span>
+                    <span style={{ color: 'var(--encre-douce)' }}>{l.quantite_colis} colis × {p?.nombre_par_colis} {p?.unite === 'kg' ? 'kg' : 'pièces'}</span>
+                    <span style={{ color: 'var(--accent)', fontWeight: 500 }}>{l.quantite_colis} étiquette{l.quantite_colis > 1 ? 's' : ''}</span>
                   </div>
                 )
               })}
@@ -214,14 +214,14 @@ export default function MerculialeEtiquettes() {
             </div>
 
             <button onClick={() => genererPDF(commande)}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#1D9E75', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
+              style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: 'var(--papier)', border: 'none', borderRadius: 0, padding: '8px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
               <Printer size={14} /> Générer PDF ({totalEtiquettes} étiquette{totalEtiquettes > 1 ? 's' : ''})
             </button>
           </div>
         )}
 
         {commandes.length === 0 && !loading && (
-          <div style={{ padding: 20, textAlign: 'center', fontSize: 13, color: '#9ca3af' }}>
+          <div style={{ padding: 20, textAlign: 'center', fontSize: 13, color: 'var(--encre-pale)' }}>
             Aucune commande en attente ou confirmée
           </div>
         )}

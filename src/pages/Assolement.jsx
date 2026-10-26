@@ -25,6 +25,17 @@ export default function Assolement() {
   const [culturesSelectionnees, setCulturesSelectionnees] = useState(new Set())
   const [modeSelection, setModeSelection] = useState(false)
   const refs = useRef({})
+  // Hauteur de la barre d'outils collée en haut : la barre de bloc ouverte se colle juste dessous
+  const barreRef = useRef(null)
+  const [hauteurBarre, setHauteurBarre] = useState(56)
+
+  useEffect(() => {
+    const el = barreRef.current
+    if (!el) return
+    const observateur = new ResizeObserver(() => setHauteurBarre(el.offsetHeight))
+    observateur.observe(el)
+    return () => observateur.disconnect()
+  }, [])
 
   const moisAffiches = MOIS.slice(offsetMois, offsetMois + 6)
   const semaineDebut = SEMAINES_PAR_MOIS.slice(0, offsetMois).reduce((a, b) => a + b, 0) + 1
@@ -321,7 +332,7 @@ export default function Assolement() {
   return (
     <div style={{ display: 'flex', gap: 12, height: 'calc(100vh - 48px)' }}>
       <div style={{ flex: 1, overflow: 'auto' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, position: 'sticky', top: 0, background: 'var(--fond)', padding: '10px 0', zIndex: 10 }}>
+        <div ref={barreRef} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, position: 'sticky', top: 0, background: 'var(--fond)', padding: '10px 0', zIndex: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Assolement</h1>
             <select value={annee} onChange={e => setAnnee(parseInt(e.target.value))}
@@ -382,7 +393,7 @@ export default function Assolement() {
             return (
               <div key={bloc.id} ref={el => refs.current[bloc.id] = el} style={{ marginBottom: 6 }}>
                 <div onClick={() => setOuverts(prev => ({ ...prev, [bloc.id]: !prev[bloc.id] }))}
-                  style={{ display: 'grid', gridTemplateColumns: '80px 1fr', alignItems: 'center', cursor: 'pointer', background: 'var(--trait-leger)', borderRadius: 0, padding: '5px 8px', marginBottom: 3 }}>
+                  style={{ display: 'grid', gridTemplateColumns: '80px 1fr', alignItems: 'center', cursor: 'pointer', background: 'var(--trait-leger)', borderRadius: 0, padding: '5px 8px', marginBottom: 3, ...(ouvert && { position: 'sticky', top: hauteurBarre, zIndex: 6 }) }}>
                   <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--encre)' }}>Bloc {bloc.nom} {ouvert ? '▾' : '▸'}</span>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)' }}>
                     {moisAffiches.map(m => <div key={m} style={{ borderLeft: '1px solid var(--trait)', height: 18 }} />)}

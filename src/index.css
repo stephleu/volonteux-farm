@@ -58,7 +58,6 @@ main h1 {
   padding-bottom: 10px;
   border-bottom: 6px double var(--trait);
   display: inline-block;
-  min-width: min(100%, 22rem);
 }
 
 a { color: inherit; }

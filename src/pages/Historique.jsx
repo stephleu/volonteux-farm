@@ -71,7 +71,7 @@ export default function Historique() {
           <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Historique des rotations</h1>
           <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>2021 → 2030</p>
         </div>
-        <div style={{ display: 'flex', border: '1px solid var(--trait)', borderRadius: 0, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', flexShrink: 0, border: '1px solid var(--trait)', borderRadius: 0, overflow: 'hidden' }}>
           {[['grille', 'Grille'], ['annee', 'Par année'], ['conformite', 'Conformité']].map(([v, label]) => (
             <button key={v} onClick={() => setVue(v)} style={{ padding: '7px 14px', fontSize: 13, border: 'none', cursor: 'pointer', background: vue === v ? 'var(--accent)' : 'var(--fond)', color: vue === v ? 'var(--papier)' : 'var(--encre-douce)' }}>
               {label}

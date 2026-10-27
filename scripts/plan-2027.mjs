@@ -10,7 +10,7 @@
 // (décalées de 52 semaines, donc même semaine et même jour), et sont posées planche par
 // planche sur le bloc cible en respectant les successions.
 // Serres : chaque serre reprend telle quelle le contenu d'une serre d'une année précédente
-// (même géométrie : 4 planches de 50 m), selon SERRES_2027.
+// (même géométrie : 4 planches de 50 m), voir SERRES_TOURNANTES et DAV.
 
 import fs from 'node:fs'
 import path from 'node:path'
@@ -39,17 +39,14 @@ const GROUPES = {
 // Groupe cible 2027 ← groupe source 2026 (même rotation)
 const BLOCS_2027 = { A: 'C', B: 'A', C: 'B', D: 'H', E: 'D', F: 'E', G: 'F', H: 'G' }
 
-// Serre cible 2027 ← serre et année sources (cf. tableau d'assolement des serres)
-const SERRES_2027 = {
-  S1: { serre: 'S5', annee: 2026, quoi: 'petites cultures de S5' },
-  S2: { serre: 'S3', annee: 2025, quoi: 'p. de t. 3 · courgette 34' },
-  S3: { serre: 'S1', annee: 2026, quoi: 'courgette 16 · haricot / concombre' },
-  S4: { serre: 'S2', annee: 2026, quoi: 'tomate 24 · haricot' },
-  S5: { serre: 'S3', annee: 2026, quoi: 'aubergine · poivron' },
-  S6: { serre: 'S7', annee: 2026, quoi: 'courgette 12' },
-  S7: { serre: 'S6', annee: 2026, quoi: 'tomate 11/13' },
-  S8: { serre: 'S4', annee: 2026, quoi: 'petites cultures de S4' },
-}
+// Serres : le contenu complet de chaque serre 2026 (S1 à S8) part d'un bloc dans une serre 2027,
+// en gardant sa disposition (on peut juste permuter l'ordre des planches). L'affectation est choisie
+// pour ne pas planter avant la fin des cultures d'automne 2026, ne pas remettre la même famille
+// principale deux ans de suite au même endroit, et ne pas laisser une serre à sa place.
+const SERRES_TOURNANTES = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8']
+// Dav (S9) : mêmes séries qu'en 2026, planches tournées (n° planche 2026 → n° planche 2027)
+// 2026 : 1 concombre, 2 haricot, 3 tomate cerise → 2027 : 1 tomate cerise, 2 concombre, 3 haricot
+const DAV = { serre: 'S9', planches: { 3: 1, 1: 2, 2: 3 } }
 
 async function tout(table, select = '*') {
   const lignes = []
@@ -229,63 +226,131 @@ for (const [cible, source] of SERRES_SEULEMENT ? [] : Object.entries(BLOCS_2027)
 
 // ---------- Serres ----------
 
-// Chaque série est posée dans les créneaux libres de sa serre (sans chevaucher les autres
-// cultures, y compris celles plantées fin 2026 et encore en place). Ce qui ne rentre pas va
-// ensuite dans les serres qui ont de la place. Les choux sortent des serres : plein champ, avec les salades.
 const nomLegume = new Map(legumes.map(l => [l.id, l.nom]))
+const familleLegume = new Map(legumes.map(l => [l.id, l.famille_id]))
 const estChou = s => /^chou/i.test(nomLegume.get(s.legume_id) || '')
-const SERRES_DEBORDEMENT = ['S1', 'S9', 'S8', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7']
-const BLOC_SALADES = 'C' // Petit maraîchage · Salade en 2027
-const debordements = []
-const choux = []
+const BLOC_SALADES = 'C' // Petit maraîchage · Salade en 2027 : les choux sortent des serres et y vont
+const choux = new Map() // serie_id → { source, metres }
 
-for (const [cible, { serre, annee, quoi }] of Object.entries(SERRES_2027)) {
-  const planchesSource = new Set(planchesDe([serre]).map(p => p.id))
-  const ans = ANNEE - annee
-  const metresParSerie = new Map()
+function contenuSerre(nom) {
+  const planchesSource = planchesDe([nom])
+  const contenu = []
   for (const c of cultures) {
-    if (c.annee !== annee || !c.serie_id || c.type !== 'prevu' || !planchesSource.has(c.planche_id)) continue
-    metresParSerie.set(c.serie_id, (metresParSerie.get(c.serie_id) || 0) + Number(c.longueur_metres))
+    const index = planchesSource.findIndex(p => p.id === c.planche_id)
+    if (index < 0 || c.annee !== ANNEE - 1 || c.type !== 'prevu' || !c.serie_id) continue
+    const s = serieParId.get(c.serie_id)
+    if (estChou(s)) {
+      const e = choux.get(s.id) || { source: s, metres: 0 }
+      e.metres += Number(c.longueur_metres)
+      choux.set(s.id, e)
+      continue
+    }
+    const debut = decaler(c.date_plantation, 1)
+    contenu.push({ c, s, index, numero: planchesSource[index].numero, debut, fin: decaler(c.date_fin_prevue, 1) || debut })
   }
-  const aPlacer = [...metresParSerie].map(([id, metres]) => ({ source: serieParId.get(id), metres, ans }))
-    .sort((a, b) => (a.source.date_plantation || '').localeCompare(b.source.date_plantation || '') || b.metres - a.metres)
+  return contenu
+}
 
-  let place = 0
-  for (const item of aPlacer) {
-    if (estChou(item.source)) { choux.push(item); continue }
-    const ligne = serie2027(item.source, item.metres, ans)
-    const debut = ligne.date_plantation
-    const fin = ligne.derniere_recolte || debut
-    const { placements, reste } = poser(planchesDe([cible]), item.metres, debut, fin, ligne.premiere_recolte)
-    place += item.metres - reste
-    if (reste > 0) debordements.push({ ...item, metres: reste, depuis: cible })
-    if (placements.length) {
-      ligne.longueur_metres = item.metres - reste
-      nouvellesSeries.push({ ligne, placements })
+// Famille et cultures principales d'une serre : ce qui occupe le plus de mètres de janvier à juillet
+function principal(contenu) {
+  const parFamille = new Map()
+  const parLegume = new Map()
+  for (const e of contenu) {
+    if (e.c.date_plantation.slice(5, 7) > '07') continue
+    const m = Number(e.c.longueur_metres)
+    parFamille.set(familleLegume.get(e.s.legume_id), (parFamille.get(familleLegume.get(e.s.legume_id)) || 0) + m)
+    parLegume.set(nomLegume.get(e.s.legume_id), (parLegume.get(nomLegume.get(e.s.legume_id)) || 0) + m)
+  }
+  const tri = m => [...m].sort((a, b) => b[1] - a[1])
+  return { famille: tri(parFamille)[0]?.[0] ?? null, cultures: tri(parLegume).slice(0, 3).map(([n]) => n).join(' · ') || 'petites cultures' }
+}
+
+const paquets = SERRES_TOURNANTES.map(nom => {
+  const contenu = contenuSerre(nom)
+  return { nom, contenu, ...principal(contenu) }
+})
+const familleEn2026 = Object.fromEntries(paquets.map(p => [p.nom, p.famille]))
+
+function permutations(liste) {
+  if (liste.length <= 1) return [liste]
+  return liste.flatMap((x, i) => permutations([...liste.slice(0, i), ...liste.slice(i + 1)]).map(r => [x, ...r]))
+}
+
+// Chevauchements si on pose le paquet dans la serre cible, planche source i → planche cible perm[i]
+function chevauchements(paquet, cible, perm) {
+  const planchesCible = planchesDe([cible])
+  let n = 0
+  for (const e of paquet.contenu) {
+    const planche = planchesCible[perm[e.index]]
+    if (!planche) { n += 1000; continue }
+    const position = Number(e.c.position_debut) || 0
+    const metres = Number(e.c.longueur_metres)
+    for (const o of occupation.get(planche.id) || []) {
+      if (o.debut <= e.fin && e.debut <= o.fin && o.position < position + metres && position < o.position + o.longueur) n++
     }
   }
-  rapport.push(`${cible} ← ${serre} ${annee} · ${quoi} : ${place} m posés`)
+  return n
 }
 
-for (const item of debordements) {
-  const ligne = serie2027(item.source, item.metres, item.ans)
-  const debut = ligne.date_plantation
-  const fin = ligne.derniere_recolte || debut
-  const { placements, reste } = poser(planchesDe(SERRES_DEBORDEMENT.filter(s => s !== item.depuis)), item.metres, debut, fin, ligne.premiere_recolte)
-  const ou = [...new Set(placements.map(p => blocDe.get(p.planche.id)?.nom))].join(', ')
-  if (placements.length) {
-    ligne.longueur_metres = item.metres - reste
-    nouvellesSeries.push({ ligne, placements })
-    rapport.push(`  ${item.source.nom} : ${item.metres - reste} m de ${item.depuis} déplacés en ${ou}`)
-  }
-  if (reste > 0) {
-    manques.push(`${item.depuis} : ${item.source.nom} — ${reste} m sans place dans aucune serre`)
-    nouvellesSeries.push({ ligne: serie2027(item.source, reste, item.ans), placements: [] })
+// Meilleur ordre de planches pour chaque couple (paquet, serre cible)
+const PERMS = permutations([0, 1, 2, 3])
+const meilleur = {}
+for (const paquet of paquets) {
+  for (const cible of SERRES_TOURNANTES) {
+    let choix = null
+    for (const perm of PERMS) {
+      const n = chevauchements(paquet, cible, perm)
+      const garde = perm.every((x, i) => x === i) ? 0 : 1 // à égalité, on garde l'ordre des planches
+      if (!choix || n * 10 + garde < choix.n * 10 + choix.garde) choix = { perm, n, garde }
+    }
+    const memeFamille = paquet.famille && paquet.famille === familleEn2026[cible]
+    meilleur[`${paquet.nom}>${cible}`] = { ...choix, cout: choix.n * 100 + (memeFamille ? 20 : 0) + (paquet.nom === cible ? 1000 : 0) + choix.garde, memeFamille }
   }
 }
 
-for (const item of choux) {
-  const ligne = serie2027({ ...item.source, sous_abri: false }, item.metres, item.ans)
+// Affectation serres 2026 → serres 2027 qui minimise le coût total (8! possibilités)
+let affectation = null
+for (const cibles of permutations(SERRES_TOURNANTES)) {
+  const cout = paquets.reduce((acc, p, i) => acc + meilleur[`${p.nom}>${cibles[i]}`].cout, 0)
+  if (!affectation || cout < affectation.cout) affectation = { cibles, cout }
+}
+
+function poserCopie(contenu, planchePour, ans = 1) {
+  const parSerie = new Map()
+  for (const e of contenu) {
+    const entree = parSerie.get(e.s.id) || { metres: 0, placements: [] }
+    const planche = planchePour(e)
+    entree.metres += Number(e.c.longueur_metres)
+    entree.placements.push({ planche, position: Number(e.c.position_debut) || 0, longueur: Number(e.c.longueur_metres), debut: e.debut, fin: e.fin, premiere: decaler(e.c.premiere_recolte, ans) })
+    occuper(planche, Number(e.c.position_debut) || 0, Number(e.c.longueur_metres), e.debut, e.fin)
+    parSerie.set(e.s.id, entree)
+  }
+  for (const [id, { metres, placements }] of parSerie) {
+    nouvellesSeries.push({ ligne: serie2027(serieParId.get(id), metres, ans), placements })
+  }
+}
+
+paquets.forEach((paquet, i) => {
+  const cible = affectation.cibles[i]
+  const { perm, n, memeFamille } = meilleur[`${paquet.nom}>${cible}`]
+  const planchesCible = planchesDe([cible])
+  // Chevauchements comptés avant de poser, sinon le paquet se compterait lui-même
+  poserCopie(paquet.contenu, e => planchesCible[perm[e.index]])
+  const ordre = perm.every((x, j) => x === j) ? '' : ` · planches ${perm.map((x, j) => `${j + 1}→${x + 1}`).join(' ')}`
+  rapport.push(`${cible} ← ${paquet.nom} 2026 · ${paquet.cultures}${ordre}${n ? ` · ⚠ ${n} chevauchement(s) avec l'automne 2026` : ''}${memeFamille ? ' · ⚠ même famille qu\'en 2026' : ''}`)
+  if (n) manques.push(`${cible} : ${n} culture(s) arrivent avant la fin d'une culture d'automne 2026`)
+})
+
+// Dav (S9) : mêmes séries qu'en 2026, planches tournées
+{
+  const planchesCible = planchesDe([DAV.serre])
+  const contenu = contenuSerre(DAV.serre)
+  poserCopie(contenu, e => planchesCible.find(p => p.numero === DAV.planches[e.numero]) || planchesCible[e.index])
+  rapport.push(`${DAV.serre} ← ${DAV.serre} 2026, planches tournées : ${contenu.map(e => `${nomLegume.get(e.s.legume_id)} ${e.numero}→${DAV.planches[e.numero] ?? e.numero}`).join(', ')}`)
+}
+
+for (const item of choux.values()) {
+  const ligne = serie2027({ ...item.source, sous_abri: false }, item.metres)
   const debut = ligne.date_plantation
   const fin = ligne.derniere_recolte || debut
   const { placements, reste } = poser(planchesDe(GROUPES[BLOC_SALADES]), item.metres, debut, fin, ligne.premiere_recolte)
@@ -296,7 +361,7 @@ for (const item of choux) {
   rapport.push(`  ${item.source.nom} : sorti des serres, ${item.metres - reste} m en plein champ (bloc ${BLOC_SALADES})`)
   if (reste > 0) {
     manques.push(`${BLOC_SALADES} : ${item.source.nom} — ${reste} m sans place`)
-    nouvellesSeries.push({ ligne: serie2027({ ...item.source, sous_abri: false }, reste, item.ans), placements: [] })
+    nouvellesSeries.push({ ligne: serie2027({ ...item.source, sous_abri: false }, reste), placements: [] })
   }
 }
 

@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 
 const MOIS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc']
 const SEMAINES_PAR_MOIS = [4, 4, 5, 4, 4, 5, 4, 4, 4, 5, 4, 5]
+const HAUTEUR_MOIS = 24
 
 export default function Assolement() {
   const [blocs, setBlocs] = useState([])
@@ -400,7 +401,8 @@ export default function Assolement() {
         </div>
 
         <div style={{ minWidth: 600 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', marginBottom: 4 }}>
+          {/* Ligne des mois collée sous la barre d'outils */}
+          <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', alignItems: 'center', height: HAUTEUR_MOIS, position: 'sticky', top: hauteurBarre, zIndex: 8, background: 'var(--fond)', borderBottom: '1px solid var(--trait)', marginBottom: 4 }}>
             <div />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)' }}>
               {moisAffiches.map(m => (
@@ -417,7 +419,7 @@ export default function Assolement() {
             return (
               <div key={bloc.id} ref={el => refs.current[bloc.id] = el} style={{ marginBottom: 6 }}>
                 <div onClick={() => setOuverts(prev => ({ ...prev, [bloc.id]: !prev[bloc.id] }))}
-                  style={{ display: 'grid', gridTemplateColumns: '80px 1fr', alignItems: 'center', cursor: 'pointer', background: 'var(--trait-leger)', borderRadius: 0, padding: '5px 8px', marginBottom: 3, ...(ouvert && { position: 'sticky', top: hauteurBarre, zIndex: 6 }) }}>
+                  style={{ display: 'grid', gridTemplateColumns: '80px 1fr', alignItems: 'center', cursor: 'pointer', background: 'var(--trait-leger)', borderRadius: 0, padding: '5px 8px', marginBottom: 3, ...(ouvert && { position: 'sticky', top: hauteurBarre + HAUTEUR_MOIS, zIndex: 6 }) }}>
                   <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--encre)' }}>Bloc {bloc.nom} {ouvert ? '▾' : '▸'}</span>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)' }}>
                     {moisAffiches.map(m => <div key={m} style={{ borderLeft: '1px solid var(--trait)', height: 18 }} />)}

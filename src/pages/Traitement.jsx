@@ -5,6 +5,7 @@ import { AlertTriangle, Check } from 'lucide-react'
 import AjoutSerie from '../components/AjoutSerie.jsx'
 
 const ANNEE = anneeCourante()
+const ANNEES = [2025, 2026, 2027, 2028]
 
 export default function Traitement() {
   const [series, setSeries] = useState([])
@@ -14,13 +15,14 @@ export default function Traitement() {
   const [loading, setLoading] = useState(true)
   const [vue, setVue] = useState('alertes')
   const [semaineCourante] = useState(calculSemaineCourante)
+  const [annee, setAnnee] = useState(ANNEE)
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => { fetchData() }, [annee])
 
   async function fetchData() {
     const [{ data: s }, { data: t }, { data: tt }, { data: sv }] = await Promise.all([
-      supabase.from('series').select('*, legumes(nom, familles(couleur)), varietes(nom)').eq('annee', ANNEE).order('semaine_plantation'),
-      supabase.from('serie_traitements').select('*, series!inner(annee, nom, semaine_plantation, longueur_metres, legumes(nom, familles(couleur))), types_traitement(nom)').eq('series.annee', ANNEE),
+      supabase.from('series').select('*, legumes(nom, familles(couleur)), varietes(nom)').eq('annee', annee).order('semaine_plantation'),
+      supabase.from('serie_traitements').select('*, series!inner(annee, nom, semaine_plantation, longueur_metres, legumes(nom, familles(couleur))), types_traitement(nom)').eq('series.annee', annee),
       supabase.from('types_traitement').select('*').order('nom'),
       supabase.from('suivi_traitements').select('*'),
     ])
@@ -61,6 +63,7 @@ export default function Traitement() {
   const alertes = traitementsAvecSemaine.filter(t => {
     const suivi = getSuivi(t.id)
     if (suivi?.fait) return false
+    if (annee !== ANNEE) return false
     return t.semaineTraitement <= semaineCourante + 3
   })
 
@@ -69,7 +72,11 @@ export default function Traitement() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Traitements phyto</h1>
-          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>{traitements.length} traitements planifiés · saison {ANNEE}</p>
+          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>{traitements.length} traitements planifiés · saison{' '}
+            <select value={annee} onChange={e => setAnnee(parseInt(e.target.value))} style={{ fontSize: 13, padding: '2px 6px', border: '1px solid var(--trait)', borderRadius: 0 }}>
+              {ANNEES.map(a => <option key={a} value={a}>{a}</option>)}
+            </select>
+          </p>
         </div>
         <div style={{ display: 'flex', border: '1px solid var(--trait)', borderRadius: 0, overflow: 'hidden' }}>
           {[['alertes', 'Alertes'], ['planning', 'Planning'], ['suivi', 'Suivi']].map(([v, label]) => (
@@ -131,7 +138,7 @@ export default function Traitement() {
           {traitementsAvecSemaine.map((traitement, i) => {
             const suivi = getSuivi(traitement.id)
             const couleur = traitement.series?.legumes?.familles?.couleur || '#9dca9a'
-            const passe = traitement.semaineTraitement < semaineCourante
+            const passe = annee < ANNEE || (annee === ANNEE && traitement.semaineTraitement < semaineCourante)
             return (
               <div key={i} style={{ background: 'var(--papier)', border: `1px solid ${suivi?.fait ? 'var(--vert)' : passe ? 'var(--rouge-clair)' : 'var(--trait-leger)'}`, borderRadius: 0, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 12, opacity: suivi?.fait ? 0.7 : 1 }}>
                 <div style={{ width: 10, height: 10, borderRadius: '50%', background: couleur, flexShrink: 0 }} />

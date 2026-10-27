@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { semaineCourante as calculSemaineCourante, anneeCourante } from '../lib/dates'
-import { AlertTriangle, Check } from 'lucide-react'
+import { Check } from 'lucide-react'
 import AjoutSerie from '../components/AjoutSerie.jsx'
 
 const ANNEE = anneeCourante()
@@ -14,7 +14,7 @@ export default function Fertilisation() {
   const [fertilisations, setFertilisations] = useState([])
   const [suivis, setSuivis] = useState([])
   const [loading, setLoading] = useState(true)
-  const [vue, setVue] = useState('alertes')
+  const [vue, setVue] = useState('planning')
   const [semaineCourante] = useState(calculSemaineCourante)
   const [annee, setAnnee] = useState(ANNEE)
 
@@ -88,18 +88,6 @@ export default function Fertilisation() {
     semaineFerti: getSemaineFerti(f.series?.semaine_plantation, f.semaines_apres_plantation),
   })).sort((a, b) => a.semaineFerti - b.semaineFerti)
 
-  const alertes = fertisAvecSemaine.filter(f => {
-    const suivi = getSuivi(f.id)
-    if (suivi?.fait) return false
-    if (annee !== ANNEE) return false
-    return f.semaineFerti >= semaineCourante - 1 && f.semaineFerti <= semaineCourante + 3
-  })
-
-  const totalSacsAlerte = alertes.reduce((acc, f) => {
-    const { nbSacs } = calculQuantite(f.series?.longueur_metres || 50, f.dose_kg_ha)
-    return acc + nbSacs
-  }, 0)
-
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
@@ -112,7 +100,7 @@ export default function Fertilisation() {
           </p>
         </div>
         <div style={{ display: 'flex', flexShrink: 0, border: '1px solid var(--trait)', borderRadius: 0, overflow: 'hidden' }}>
-          {[['alertes', 'Alertes'], ['planning', 'Planning'], ['suivi', 'Suivi']].map(([v, label]) => (
+          {[['planning', 'Planning'], ['suivi', 'Suivi']].map(([v, label]) => (
             <button key={v} onClick={() => setVue(v)} style={{ padding: '7px 14px', fontSize: 13, border: 'none', cursor: 'pointer', background: vue === v ? 'var(--accent)' : 'var(--fond)', color: vue === v ? 'var(--papier)' : 'var(--encre-douce)' }}>
               {label}
             </button>
@@ -125,46 +113,6 @@ export default function Fertilisation() {
       </div>
 
       {loading && <p style={{ fontSize: 13, color: 'var(--encre-douce)' }}>Chargement...</p>}
-
-      {vue === 'alertes' && (
-        <div>
-          {alertes.length === 0 ? (
-            <div style={{ background: 'var(--vert-pale)', border: '1px solid var(--vert)', borderRadius: 0, padding: 20, fontSize: 13, color: 'var(--vert-fonce)' }}>
-              ✓ Aucune fertilisation urgente cette semaine
-            </div>
-          ) : (
-            <>
-              <div style={{ background: 'var(--jaune-pale)', border: '1px solid var(--jaune)', borderRadius: 0, padding: '10px 14px', marginBottom: 14, fontSize: 13, color: 'var(--ocre)', display: 'flex', alignItems: 'center', gap: 10 }}>
-                <AlertTriangle size={16} />
-                <span>{alertes.length} fertilisation{alertes.length > 1 ? 's' : ''} à faire · <strong>{totalSacsAlerte} sacs de 25kg</strong> à préparer</span>
-              </div>
-              {alertes.map((ferti, i) => {
-                const suivi = getSuivi(ferti.id)
-                const { quantiteKg, nbSacs } = calculQuantite(ferti.series?.longueur_metres || 50, ferti.dose_kg_ha)
-                const couleur = ferti.series?.legumes?.familles?.couleur || '#9dca9a'
-                return (
-                  <div key={i} style={{ background: 'var(--papier)', border: '1px solid var(--trait)', borderRadius: 0, padding: '12px 14px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: couleur, flexShrink: 0 }} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--encre)' }}>
-                        {ferti.series?.legumes?.nom} · passage {ferti.series?.nom}
-                      </div>
-                      <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginTop: 2 }}>
-                        Semaine {ferti.semaineFerti} · {ferti.dose_kg_ha} kg/ha · {quantiteKg} kg · <strong>{nbSacs} sac{nbSacs > 1 ? 's' : ''}</strong>
-                      </div>
-                    </div>
-                    <button onClick={() => toggleFait(ferti)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', fontSize: 12, border: `1px solid ${suivi?.fait ? 'var(--vert)' : 'var(--trait-leger)'}`, borderRadius: 0, cursor: 'pointer', background: suivi?.fait ? 'var(--vert-pale)' : 'var(--fond)', color: suivi?.fait ? 'var(--vert-fonce)' : 'var(--encre-douce)', fontWeight: suivi?.fait ? 500 : 400 }}>
-                      <Check size={13} />
-                      {suivi?.fait ? 'Fait' : 'Marquer fait'}
-                    </button>
-                  </div>
-                )
-              })}
-            </>
-          )}
-        </div>
-      )}
 
       {vue === 'planning' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

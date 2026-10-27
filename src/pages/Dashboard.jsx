@@ -21,7 +21,7 @@ export default function Dashboard() {
   useEffect(() => { fetchData() }, [])
 
   async function fetchData() {
-    const [{ data: s }, { data: f }, { data: t }, { data: c }] = await Promise.all([
+    const [{ data: s }, { data: f }, { data: t }, { data: c }, { data: sf }, { data: st }] = await Promise.all([
       supabase.from('series').select('*, legumes(nom, familles(couleur))').eq('annee', ANNEE).order('semaine_plantation'),
       supabase.from('serie_fertilisations').select('*, series!inner(nom, annee, semaine_plantation, longueur_metres, legumes(nom))').eq('series.annee', ANNEE),
       supabase.from('serie_traitements').select('*, series!inner(nom, annee, semaine_plantation, legumes(nom)), types_traitement(nom)').eq('series.annee', ANNEE),
@@ -29,10 +29,15 @@ export default function Dashboard() {
         .select('*, mercuriale_epiceries(nom), mercuriale_lignes(*, mercuriale_produits(nom, variete, unite, nombre_par_colis))')
         .in('statut', ['en_attente', 'confirmee'])
         .order('date_commande', { ascending: false }),
+      supabase.from('suivi_ferti').select('plan_ferti_id').eq('fait', true),
+      supabase.from('suivi_traitements').select('traitement_id').eq('fait', true),
     ])
+    // Les passages déjà marqués « fait » ne sont plus des alertes
+    const fertisFaites = new Set((sf || []).map(x => x.plan_ferti_id))
+    const traitementsFaits = new Set((st || []).map(x => x.traitement_id))
     setSeries(s || [])
-    setFertilisations(f || [])
-    setTraitements(t || [])
+    setFertilisations((f || []).filter(x => !fertisFaites.has(x.id)))
+    setTraitements((t || []).filter(x => !traitementsFaits.has(x.id)))
     setCommandes(c || [])
     setLoading(false)
   }
@@ -50,14 +55,16 @@ export default function Dashboard() {
   // Grouper les alertes prépa par semaine de plantation
   const semaisnesPrepaGroupees = [...new Set(alertesPrepa.map(s => s.semaine_plantation))].sort((a, b) => a - b)
 
+  // Mêmes fenêtres que les anciens onglets Alertes des pages Fertilisation et Traitements
   const alertesFerti = fertilisations.filter(f => {
     const sem = (f.series?.semaine_plantation || 0) + f.semaines_apres_plantation
-    return sem >= SEMAINE_COURANTE - 1 && sem <= SEMAINE_COURANTE + 2
+    return sem >= SEMAINE_COURANTE - 1 && sem <= SEMAINE_COURANTE + 3
   })
 
+  // Traitements : aussi ceux en retard, tant qu'ils ne sont pas marqués faits
   const alertesTraitement = traitements.filter(t => {
     const sem = (t.series?.semaine_plantation || 0) + t.semaines_apres_plantation
-    return sem >= SEMAINE_COURANTE - 1 && sem <= SEMAINE_COURANTE + 2
+    return sem <= SEMAINE_COURANTE + 3
   })
 
   const totalAlertes = alertesPrepa.length + alertesFerti.length + alertesTraitement.length
@@ -190,17 +197,21 @@ export default function Dashboard() {
           {alertesTraitement.length > 0 && (
             <div style={{ marginBottom: 14 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                <Shield size={14} color="#8b5cf6" />
+                <Shield size={14} color="#1a3e76" />
                 <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--encre)' }}>Traitements à faire</span>
               </div>
-              {alertesTraitement.map((t, i) => (
-                <div key={i} style={{ padding: '9px 12px', background: '#fdf4ff', border: '1px solid #e9d5ff', borderRadius: 0, marginBottom: 6 }}>
-                  <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--encre)' }}>{t.series?.legumes?.nom}</div>
-                  <div style={{ fontSize: 11, color: 'var(--encre-douce)' }}>
-                    Sem. {(t.series?.semaine_plantation || 0) + t.semaines_apres_plantation} · {t.types_traitement?.nom}
+              {alertesTraitement.map((t, i) => {
+                const sem = (t.series?.semaine_plantation || 0) + t.semaines_apres_plantation
+                const enRetard = sem < SEMAINE_COURANTE
+                return (
+                  <div key={i} style={{ padding: '9px 12px', background: enRetard ? 'var(--rouge-pale)' : 'var(--bleu-pale)', border: `1px solid ${enRetard ? 'var(--rouge-clair)' : 'var(--bleu-clair)'}`, borderRadius: 0, marginBottom: 6 }}>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--encre)' }}>{t.series?.legumes?.nom}{t.series?.nom ? <span style={{ fontWeight: 400, color: 'var(--encre-pale)' }}> · {t.series.nom}</span> : null}</div>
+                    <div style={{ fontSize: 11, color: enRetard ? 'var(--rouge)' : 'var(--encre-douce)' }}>
+                      Sem. {sem} · {t.types_traitement?.nom}{enRetard ? ' · en retard' : ''}
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
 

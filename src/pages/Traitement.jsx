@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { semaineCourante as calculSemaineCourante, anneeCourante } from '../lib/dates'
-import { AlertTriangle, Check } from 'lucide-react'
+import { Check } from 'lucide-react'
 import AjoutSerie from '../components/AjoutSerie.jsx'
 
 const ANNEE = anneeCourante()
@@ -13,7 +13,7 @@ export default function Traitement() {
   const [typesTraitement, setTypesTraitement] = useState([])
   const [suivis, setSuivis] = useState([])
   const [loading, setLoading] = useState(true)
-  const [vue, setVue] = useState('alertes')
+  const [vue, setVue] = useState('planning')
   const [semaineCourante] = useState(calculSemaineCourante)
   const [annee, setAnnee] = useState(ANNEE)
 
@@ -82,13 +82,6 @@ export default function Traitement() {
     semaineTraitement: getSemaineTraitement(t.series?.semaine_plantation, t.semaines_apres_plantation),
   })).sort((a, b) => a.semaineTraitement - b.semaineTraitement)
 
-  const alertes = traitementsAvecSemaine.filter(t => {
-    const suivi = getSuivi(t.id)
-    if (suivi?.fait) return false
-    if (annee !== ANNEE) return false
-    return t.semaineTraitement <= semaineCourante + 3
-  })
-
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
@@ -101,7 +94,7 @@ export default function Traitement() {
           </p>
         </div>
         <div style={{ display: 'flex', border: '1px solid var(--trait)', borderRadius: 0, overflow: 'hidden' }}>
-          {[['alertes', 'Alertes'], ['planning', 'Planning'], ['suivi', 'Suivi']].map(([v, label]) => (
+          {[['planning', 'Planning'], ['suivi', 'Suivi']].map(([v, label]) => (
             <button key={v} onClick={() => setVue(v)} style={{ padding: '7px 14px', fontSize: 13, border: 'none', cursor: 'pointer', background: vue === v ? 'var(--accent)' : 'var(--fond)', color: vue === v ? 'var(--papier)' : 'var(--encre-douce)' }}>
               {label}
             </button>
@@ -114,46 +107,6 @@ export default function Traitement() {
       </div>
 
       {loading && <p style={{ fontSize: 13, color: 'var(--encre-douce)' }}>Chargement...</p>}
-
-      {vue === 'alertes' && (
-        <div>
-          {alertes.length === 0 ? (
-            <div style={{ background: 'var(--vert-pale)', border: '1px solid var(--vert)', borderRadius: 0, padding: 20, fontSize: 13, color: 'var(--vert-fonce)' }}>
-              ✓ Aucun traitement urgent cette semaine
-            </div>
-          ) : (
-            <>
-              <div style={{ background: 'var(--jaune-pale)', border: '1px solid var(--jaune)', borderRadius: 0, padding: '10px 14px', marginBottom: 14, fontSize: 13, color: 'var(--ocre)', display: 'flex', alignItems: 'center', gap: 10 }}>
-                <AlertTriangle size={16} />
-                <span>{alertes.length} traitement{alertes.length > 1 ? 's' : ''} à effectuer</span>
-              </div>
-              {alertes.map((traitement, i) => {
-                const suivi = getSuivi(traitement.id)
-                const couleur = traitement.series?.legumes?.familles?.couleur || '#9dca9a'
-                return (
-                  <div key={i} style={{ background: 'var(--papier)', border: '1px solid var(--trait)', borderRadius: 0, padding: '12px 14px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: couleur, flexShrink: 0 }} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--encre)' }}>
-                        {traitement.series?.legumes?.nom}
-                        <span style={{ fontSize: 11, color: 'var(--encre-pale)', fontWeight: 400, marginLeft: 6 }}>{traitement.series?.nom}</span>
-                      </div>
-                      <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginTop: 2 }}>
-                        Semaine {traitement.semaineTraitement} · <strong>{traitement.types_traitement?.nom}</strong>
-                      </div>
-                    </div>
-                    <button onClick={() => toggleFait(traitement)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', fontSize: 12, border: `1px solid ${suivi?.fait ? 'var(--vert)' : 'var(--trait-leger)'}`, borderRadius: 0, cursor: 'pointer', background: suivi?.fait ? 'var(--vert-pale)' : 'var(--fond)', color: suivi?.fait ? 'var(--vert-fonce)' : 'var(--encre-douce)', fontWeight: suivi?.fait ? 500 : 400 }}>
-                      <Check size={13} />
-                      {suivi?.fait ? 'Fait' : 'Marquer fait'}
-                    </button>
-                  </div>
-                )
-              })}
-            </>
-          )}
-        </div>
-      )}
 
       {vue === 'planning' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

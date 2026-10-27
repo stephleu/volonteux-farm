@@ -55,6 +55,28 @@ export default function Traitement() {
     fetchData()
   }
 
+  // Modification d'un traitement depuis le planning : { id, type_traitement_id, semaines_apres_plantation }
+  const [enModif, setEnModif] = useState(null)
+
+  async function enregistrerModif() {
+    const { error } = await supabase.from('serie_traitements').update({
+      type_traitement_id: enModif.type_traitement_id,
+      semaines_apres_plantation: parseInt(enModif.semaines_apres_plantation),
+    }).eq('id', enModif.id)
+    if (error) return alert(`Modification impossible : ${error.message}`)
+    setEnModif(null)
+    fetchData()
+  }
+
+  async function supprimerPassage(traitement) {
+    if (!window.confirm(`Supprimer ce traitement (${traitement.series?.legumes?.nom}, sem. ${traitement.semaineTraitement}) ?`)) return
+    await supabase.from('suivi_traitements').delete().eq('traitement_id', traitement.id)
+    const { error } = await supabase.from('serie_traitements').delete().eq('id', traitement.id)
+    if (error) return alert(`Suppression impossible : ${error.message}`)
+    setEnModif(null)
+    fetchData()
+  }
+
   const traitementsAvecSemaine = traitements.map(t => ({
     ...t,
     semaineTraitement: getSemaineTraitement(t.series?.semaine_plantation, t.semaines_apres_plantation),
@@ -151,11 +173,33 @@ export default function Traitement() {
                     Sem. {traitement.semaineTraitement} · {traitement.types_traitement?.nom}
                   </div>
                 </div>
-                <button onClick={() => toggleFait(traitement)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', fontSize: 11, border: `1px solid ${suivi?.fait ? 'var(--vert)' : 'var(--trait-leger)'}`, borderRadius: 0, cursor: 'pointer', background: suivi?.fait ? 'var(--vert-pale)' : 'var(--fond)', color: suivi?.fait ? 'var(--vert-fonce)' : 'var(--encre-douce)' }}>
-                  <Check size={12} />
-                  {suivi?.fait ? `Fait le ${suivi.date_reelle}` : 'À faire'}
-                </button>
+                {enModif?.id === traitement.id ? (
+                  <>
+                    <select value={enModif.type_traitement_id} onChange={e => setEnModif({ ...enModif, type_traitement_id: e.target.value })}
+                      style={{ fontSize: 11, padding: '4px 6px', border: '1px solid var(--trait)' }}>
+                      {typesTraitement.map(t => <option key={t.id} value={t.id}>{t.nom}</option>)}
+                    </select>
+                    <select value={enModif.semaines_apres_plantation} onChange={e => setEnModif({ ...enModif, semaines_apres_plantation: e.target.value })}
+                      style={{ fontSize: 11, padding: '4px 6px', border: '1px solid var(--trait)' }}>
+                      {Array.from({ length: 31 }, (_, s) => s).map(s => <option key={s} value={s}>Sem. +{s} (sem. {(traitement.series?.semaine_plantation || 0) + s})</option>)}
+                    </select>
+                    <button onClick={enregistrerModif} style={{ padding: '5px 10px', fontSize: 11, border: 'none', background: 'var(--accent)', color: 'var(--papier)', cursor: 'pointer' }}>OK</button>
+                    <button onClick={() => setEnModif(null)} style={{ padding: '5px 10px', fontSize: 11, border: '1px solid var(--trait)', background: 'var(--fond)', cursor: 'pointer' }}>Annuler</button>
+                    <button onClick={() => supprimerPassage(traitement)} style={{ padding: '5px 10px', fontSize: 11, border: '1px solid var(--rouge-clair)', background: 'var(--rouge-pale)', color: 'var(--rouge)', cursor: 'pointer' }}>Supprimer</button>
+                  </>
+                ) : (
+                  <>
+                    <button onClick={() => setEnModif({ id: traitement.id, type_traitement_id: traitement.type_traitement_id, semaines_apres_plantation: traitement.semaines_apres_plantation })}
+                      style={{ padding: '5px 10px', fontSize: 11, border: '1px solid var(--trait-leger)', background: 'var(--fond)', color: 'var(--encre-douce)', cursor: 'pointer' }}>
+                      Modifier
+                    </button>
+                    <button onClick={() => toggleFait(traitement)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', fontSize: 11, border: `1px solid ${suivi?.fait ? 'var(--vert)' : 'var(--trait-leger)'}`, borderRadius: 0, cursor: 'pointer', background: suivi?.fait ? 'var(--vert-pale)' : 'var(--fond)', color: suivi?.fait ? 'var(--vert-fonce)' : 'var(--encre-douce)' }}>
+                      <Check size={12} />
+                      {suivi?.fait ? `Fait le ${suivi.date_reelle}` : 'À faire'}
+                    </button>
+                  </>
+                )}
               </div>
             )
           })}

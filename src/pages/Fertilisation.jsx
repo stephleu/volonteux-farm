@@ -7,7 +7,6 @@ import AjoutSerie from '../components/AjoutSerie.jsx'
 const ANNEE = anneeCourante()
 const ANNEES = [2025, 2026, 2027, 2028]
 
-const SURFACE_PLANCHE = 70
 const SACS_KG = 25
 
 export default function Fertilisation() {
@@ -59,6 +58,28 @@ export default function Fertilisation() {
         date_reelle: new Date().toISOString().split('T')[0],
       })
     }
+    fetchData()
+  }
+
+  // Modification d'un passage depuis le planning : { id, dose_kg_ha, semaines_apres_plantation }
+  const [enModif, setEnModif] = useState(null)
+
+  async function enregistrerModif() {
+    const { error } = await supabase.from('serie_fertilisations').update({
+      dose_kg_ha: parseFloat(enModif.dose_kg_ha),
+      semaines_apres_plantation: parseInt(enModif.semaines_apres_plantation),
+    }).eq('id', enModif.id)
+    if (error) return alert(`Modification impossible : ${error.message}`)
+    setEnModif(null)
+    fetchData()
+  }
+
+  async function supprimerPassage(ferti) {
+    if (!window.confirm(`Supprimer ce passage de fertilisation (${ferti.series?.legumes?.nom}, sem. ${ferti.semaineFerti}) ?`)) return
+    await supabase.from('suivi_ferti').delete().eq('plan_ferti_id', ferti.id)
+    const { error } = await supabase.from('serie_fertilisations').delete().eq('id', ferti.id)
+    if (error) return alert(`Suppression impossible : ${error.message}`)
+    setEnModif(null)
     fetchData()
   }
 
@@ -164,11 +185,31 @@ export default function Fertilisation() {
                     Sem. {ferti.semaineFerti} · {ferti.dose_kg_ha} kg/ha · {quantiteKg} kg · {nbSacs} sac{nbSacs > 1 ? 's' : ''}
                   </div>
                 </div>
-                <button onClick={() => toggleFait(ferti)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', fontSize: 11, border: `1px solid ${suivi?.fait ? 'var(--vert)' : 'var(--trait-leger)'}`, borderRadius: 0, cursor: 'pointer', background: suivi?.fait ? 'var(--vert-pale)' : 'var(--fond)', color: suivi?.fait ? 'var(--vert-fonce)' : 'var(--encre-douce)' }}>
-                  <Check size={12} />
-                  {suivi?.fait ? `Fait le ${suivi.date_reelle}` : 'À faire'}
-                </button>
+                {enModif?.id === ferti.id ? (
+                  <>
+                    <input type="number" min="0" step="any" value={enModif.dose_kg_ha} onChange={e => setEnModif({ ...enModif, dose_kg_ha: e.target.value })}
+                      title="Dose kg/ha" style={{ width: 80, fontSize: 11, padding: '4px 6px', border: '1px solid var(--trait)' }} />
+                    <select value={enModif.semaines_apres_plantation} onChange={e => setEnModif({ ...enModif, semaines_apres_plantation: e.target.value })}
+                      style={{ fontSize: 11, padding: '4px 6px', border: '1px solid var(--trait)' }}>
+                      {Array.from({ length: 31 }, (_, s) => s).map(s => <option key={s} value={s}>Sem. +{s} (sem. {(ferti.series?.semaine_plantation || 0) + s})</option>)}
+                    </select>
+                    <button onClick={enregistrerModif} style={{ padding: '5px 10px', fontSize: 11, border: 'none', background: 'var(--accent)', color: 'var(--papier)', cursor: 'pointer' }}>OK</button>
+                    <button onClick={() => setEnModif(null)} style={{ padding: '5px 10px', fontSize: 11, border: '1px solid var(--trait)', background: 'var(--fond)', cursor: 'pointer' }}>Annuler</button>
+                    <button onClick={() => supprimerPassage(ferti)} style={{ padding: '5px 10px', fontSize: 11, border: '1px solid var(--rouge-clair)', background: 'var(--rouge-pale)', color: 'var(--rouge)', cursor: 'pointer' }}>Supprimer</button>
+                  </>
+                ) : (
+                  <>
+                    <button onClick={() => setEnModif({ id: ferti.id, dose_kg_ha: ferti.dose_kg_ha, semaines_apres_plantation: ferti.semaines_apres_plantation })}
+                      style={{ padding: '5px 10px', fontSize: 11, border: '1px solid var(--trait-leger)', background: 'var(--fond)', color: 'var(--encre-douce)', cursor: 'pointer' }}>
+                      Modifier
+                    </button>
+                    <button onClick={() => toggleFait(ferti)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', fontSize: 11, border: `1px solid ${suivi?.fait ? 'var(--vert)' : 'var(--trait-leger)'}`, borderRadius: 0, cursor: 'pointer', background: suivi?.fait ? 'var(--vert-pale)' : 'var(--fond)', color: suivi?.fait ? 'var(--vert-fonce)' : 'var(--encre-douce)' }}>
+                      <Check size={12} />
+                      {suivi?.fait ? `Fait le ${suivi.date_reelle}` : 'À faire'}
+                    </button>
+                  </>
+                )}
               </div>
             )
           })}

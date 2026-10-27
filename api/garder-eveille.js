@@ -4,6 +4,7 @@
 import { supabase } from '../src/lib/supabase.js'
 
 export default async function handler(req, res) {
-  const { error } = await supabase.from('familles').select('id').limit(1)
+  // Table lisible sans connexion (catalogue public), donc toujours accessible ici
+  const { error } = await supabase.from('mercuriale_produits').select('id').limit(1)
   res.status(error ? 502 : 200).json({ ok: !error, erreur: error?.message ?? null })
 }

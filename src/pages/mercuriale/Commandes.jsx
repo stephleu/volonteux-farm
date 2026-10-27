@@ -27,23 +27,28 @@ export default function MerculialeCommandes() {
   }
 
   async function handleSave() {
-    const { data: commande } = await supabase.from('mercuriale_commandes').insert({
+    const { data: commande, error } = await supabase.from('mercuriale_commandes').insert({
       epicerie_id: form.epicerie_id,
       notes: form.notes || null,
       statut: 'en_attente',
     }).select().single()
+    if (error) {
+      alert(`Commande non enregistrée : ${error.message}`)
+      return
+    }
 
-    if (commande) {
-      const lignesValides = lignes.filter(l => l.produit_id && l.quantite_colis > 0)
-      for (const ligne of lignesValides) {
-        const produit = produits.find(p => p.id === ligne.produit_id)
-        await supabase.from('mercuriale_lignes').insert({
-          commande_id: commande.id,
-          produit_id: ligne.produit_id,
-          quantite_colis: parseInt(ligne.quantite_colis),
-          prix_unitaire: produit?.prix_ht || 0,
-        })
-      }
+    // Toutes les lignes en une fois ; si ça échoue, on ne laisse pas une commande vide
+    const lignesValides = lignes.filter(l => l.produit_id && l.quantite_colis > 0)
+    const { error: erreurLignes } = await supabase.from('mercuriale_lignes').insert(lignesValides.map(ligne => ({
+      commande_id: commande.id,
+      produit_id: ligne.produit_id,
+      quantite_colis: parseInt(ligne.quantite_colis),
+      prix_unitaire: produits.find(p => p.id === ligne.produit_id)?.prix_ht || 0,
+    })))
+    if (erreurLignes) {
+      await supabase.from('mercuriale_commandes').delete().eq('id', commande.id)
+      alert(`Commande non enregistrée : ${erreurLignes.message}`)
+      return
     }
     setShowForm(false)
     setForm({ epicerie_id: '', notes: '' })
@@ -68,25 +73,29 @@ export default function MerculialeCommandes() {
     setLignes(updated)
   }
 
+  // Prix au moment de la commande (prix_unitaire), pas le prix actuel du produit
+  const prixLigne = l => Number(l.prix_unitaire ?? l.mercuriale_produits?.prix_ht ?? 0)
+
   function totalCommande(commande) {
     return (commande.mercuriale_lignes || []).reduce((acc, l) => {
-      return acc + (l.quantite_colis * (l.mercuriale_produits?.prix_ht || 0) * (l.mercuriale_produits?.nombre_par_colis || 1))
+      return acc + (l.quantite_colis * prixLigne(l) * (l.mercuriale_produits?.nombre_par_colis || 1))
     }, 0).toFixed(2)
   }
 
   function imprimerBL(commande) {
-    const epicerie = commande.mercuriale_epiceries?.nom || ''
-    const adresse = commande.mercuriale_epiceries?.adresse || ''
-    const email = commande.mercuriale_epiceries?.email || ''
+    const echapper = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+    const epicerie = echapper(commande.mercuriale_epiceries?.nom)
+    const adresse = echapper(commande.mercuriale_epiceries?.adresse)
+    const email = echapper(commande.mercuriale_epiceries?.email)
     const date = new Date(commande.date_commande).toLocaleDateString('fr-FR')
 
     const lignesHTML = (commande.mercuriale_lignes || []).map(l => {
       const p = l.mercuriale_produits
-      const total = (l.quantite_colis * (p?.prix_ht || 0) * (p?.nombre_par_colis || 1)).toFixed(2)
+      const total = (l.quantite_colis * prixLigne(l) * (p?.nombre_par_colis || 1)).toFixed(2)
       return `<tr>
-        <td style="padding:8px;border-bottom:1px solid #e5e7eb">${p?.nom || ''}${p?.variete ? ' · ' + p.variete : ''}</td>
+        <td style="padding:8px;border-bottom:1px solid #e5e7eb">${echapper(p?.nom)}${p?.variete ? ' · ' + echapper(p.variete) : ''}</td>
         <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:center">${l.quantite_colis} colis × ${p?.nombre_par_colis} ${p?.unite === 'kg' ? 'kg' : 'pièces'}</td>
-        <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:right">${(p?.prix_ht || 0).toFixed(2)} €</td>
+        <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:right">${prixLigne(l).toFixed(2)} €</td>
         <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:right">${total} €</td>
       </tr>`
     }).join('')
@@ -119,10 +128,14 @@ export default function MerculialeCommandes() {
       <th>Produit</th><th style="text-align:center">Quantité</th><th style="text-align:right">Prix HT/unité</th><th style="text-align:right">Total HT</th>
     </tr></thead><tbody>${lignesHTML}</tbody></table>
     <div class="total">Total HT : ${totalCommande(commande)} €</div>
-    ${commande.notes ? `<div style="margin-top:20px;padding:12px;background:#f9fafb;border-radius:6px;font-size:13px">Notes : ${commande.notes}</div>` : ''}
+    ${commande.notes ? `<div style="margin-top:20px;padding:12px;background:#f9fafb;border-radius:6px;font-size:13px">Notes : ${echapper(commande.notes)}</div>` : ''}
     </body></html>`
 
     const w = window.open('', '_blank')
+    if (!w) {
+      alert('Le navigateur a bloqué la fenêtre du bon de livraison : autorisez les fenêtres pop-up pour ce site.')
+      return
+    }
     w.document.write(html)
     w.document.close()
     w.print()
@@ -228,7 +241,7 @@ export default function MerculialeCommandes() {
                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderBottom: '1px solid var(--trait-leger)' }}>
                       <span>{p?.nom}{p?.variete ? ` · ${p.variete}` : ''}</span>
                       <span style={{ color: 'var(--encre-douce)' }}>{l.quantite_colis} colis × {p?.nombre_par_colis} {p?.unite === 'kg' ? 'kg' : 'pièces'}</span>
-                      <span>{(l.quantite_colis * (p?.prix_ht || 0) * (p?.nombre_par_colis || 1)).toFixed(2)} € HT</span>
+                      <span>{(l.quantite_colis * prixLigne(l) * (p?.nombre_par_colis || 1)).toFixed(2)} € HT</span>
                     </div>
                   )
                 })}

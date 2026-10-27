@@ -16,7 +16,8 @@ export default function MercurialeCatalogue() {
   async function fetchData() {
     const [{ data: p }, { data: e }] = await Promise.all([
       supabase.from('mercuriale_produits').select('*').eq('disponible', true).order('nom'),
-      supabase.from('mercuriale_epiceries').select('*').order('nom'),
+      // Vue publique limitée au nom : les adresses et emails des épiceries restent privés
+      supabase.from('epiceries_catalogue').select('id, nom').order('nom'),
     ])
     setProduits(p || [])
     setEpiceries(e || [])
@@ -41,22 +42,25 @@ export default function MercurialeCatalogue() {
   }, 0)
 
   async function passerCommande() {
-    if (!epicerieId) return
-    const { data: cmd } = await supabase.from('mercuriale_commandes').insert({
+    if (!epicerieId || Object.keys(panier).length === 0) return
+    // L'identifiant est créé ici : la page publique n'a pas le droit de relire les commandes
+    const commandeId = crypto.randomUUID()
+    const { error } = await supabase.from('mercuriale_commandes').insert({
+      id: commandeId,
       epicerie_id: epicerieId,
       statut: 'en_attente',
-    }).select().single()
-
-    if (cmd) {
-      for (const [produitId, qty] of Object.entries(panier)) {
-        const p = produits.find(p => p.id === produitId)
-        await supabase.from('mercuriale_lignes').insert({
-          commande_id: cmd.id,
-          produit_id: produitId,
-          quantite_colis: qty,
-          prix_unitaire: p?.prix_ht || 0,
-        })
-      }
+    })
+    const { error: erreurLignes } = error ? {} : await supabase.from('mercuriale_lignes').insert(
+      Object.entries(panier).map(([produitId, qty]) => ({
+        commande_id: commandeId,
+        produit_id: produitId,
+        quantite_colis: qty,
+        prix_unitaire: produits.find(p => p.id === produitId)?.prix_ht || 0,
+      })),
+    )
+    if (error || erreurLignes) {
+      alert("La commande n'a pas pu être envoyée. Réessayez dans un instant ou contactez la ferme.")
+      return
     }
     setPanier({})
     setEpicerieId('')

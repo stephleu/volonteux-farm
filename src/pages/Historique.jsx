@@ -15,25 +15,30 @@ const BLOCS_GROUPES = [
   { parent: 'I', sousBlocs: ['I'], type: 'bonus' },
 ]
 
+// Couleurs en hexadécimal (pas de var(--…)) : on leur ajoute un suffixe de transparence ('22')
 const COULEURS_ROTATION = {
-  'Ratatouille': 'var(--rouge)',
-  'Petit maraîchage': 'var(--accent)',
+  'Ratatouille': '#a3281b',
+  'Petit maraîchage': '#1a3e76',
   'P. de t. primeur': '#EF9F27',
-  'Poireaux': 'var(--bleu)',
+  'Poireaux': '#1a3e76',
   'P. de t. conserve': '#9B7FD4',
   'Courge': '#E8873A',
   'Choux': '#8B5E8A',
   'Carotte primeur': '#A0735A',
-  'Butternut': 'var(--rouge)',
+  'Butternut': '#a3281b',
 }
+const COULEUR_NEUTRE = '#8a867f'
 
 function getCouleur(description) {
-  if (!description) return 'var(--encre-pale)'
+  if (!description) return COULEUR_NEUTRE
   for (const [key, couleur] of Object.entries(COULEURS_ROTATION)) {
     if (description.includes(key)) return couleur
   }
-  return 'var(--encre-pale)'
+  return COULEUR_NEUTRE
 }
+
+// « P. de t. conserve · Avril/Septembre » → ['P. de t. conserve'] ; les précisions de date ne sont pas des cultures
+const culturesDe = description => description.split(' · ').filter(c => !/^[A-ZÉ][a-zé]+\/[A-ZÉ][a-zé]+$/.test(c))
 
 export default function Historique() {
   const [blocs, setBlocs] = useState([])
@@ -143,7 +148,7 @@ export default function Historique() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
             {BLOCS_GROUPES.map(groupe => {
               const rotation = getRotationGroupe(groupe, anneeSelectionnee)
-              const couleur = rotation ? getCouleur(rotation.description) : 'var(--trait-leger)'
+              const couleur = rotation ? getCouleur(rotation.description) : '#e3e0d8'
               return (
                 <div key={groupe.parent} style={{ background: couleur + '22', border: `1px solid ${couleur}`, borderRadius: 0, padding: '12px 14px' }}>
                   <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--encre)', marginBottom: 4 }}>
@@ -178,17 +183,15 @@ export default function Historique() {
                 rotation: getRotationGroupe(groupe, a)
               })).filter(r => r.rotation)
 
+              // Chaque culture de la rotation (pas seulement la première) doit respecter l'intervalle minimum
               const conflits = []
               for (let i = 0; i < rotationsGroupe.length; i++) {
-                for (let j = i + 1; j < rotationsGroupe.length; j++) {
-                  const desc1 = rotationsGroupe[i].rotation.description.split(' · ')[0]
-                  const desc2 = rotationsGroupe[j].rotation.description.split(' · ')[0]
-                  if (desc1 === desc2) {
-                    const intervalle = rotationsGroupe[j].annee - rotationsGroupe[i].annee
-                    if (intervalle < rotationRequise) {
-                      conflits.push({ annee1: rotationsGroupe[i].annee, annee2: rotationsGroupe[j].annee, culture: desc1, intervalle })
-                    }
-                    break
+                for (const culture of culturesDe(rotationsGroupe[i].rotation.description)) {
+                  const suivante = rotationsGroupe.slice(i + 1).find(r => culturesDe(r.rotation.description).includes(culture))
+                  if (!suivante) continue
+                  const intervalle = suivante.annee - rotationsGroupe[i].annee
+                  if (intervalle < rotationRequise) {
+                    conflits.push({ annee1: rotationsGroupe[i].annee, annee2: suivante.annee, culture, intervalle })
                   }
                 }
               }

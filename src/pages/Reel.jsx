@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { anneeCourante, getSaison } from '../lib/dates'
 
+const ANNEE = anneeCourante()
 const LONGUEUR_DEFAUT = 50
 const longueurDe = planche => Number(planche?.longueur) || LONGUEUR_DEFAUT
 const INCREMENT = 5
@@ -23,8 +25,8 @@ export default function Reel() {
     const [{ data: b }, { data: p }, { data: c }, { data: s }, { data: l }] = await Promise.all([
       supabase.from('blocs').select('*').order('nom'),
       supabase.from('planches').select('*').order('numero'),
-      supabase.from('cultures').select('*, legumes(nom, familles(couleur)), varietes(nom)').eq('type', 'reel').order('position_debut'),
-      supabase.from('series').select('*, legumes(nom, familles(couleur)), varietes(nom)').order('semaine_plantation'),
+      supabase.from('cultures').select('*, legumes(nom, familles(couleur)), varietes(nom)').eq('type', 'reel').eq('annee', ANNEE).order('position_debut'),
+      supabase.from('series').select('*, legumes(nom, familles(couleur)), varietes(nom)').eq('annee', ANNEE).order('semaine_plantation'),
       supabase.from('legumes').select('*, familles(couleur)').order('nom'),
     ])
     setBlocs(b || [])
@@ -46,7 +48,9 @@ export default function Reel() {
       statut: 'en_culture',
       longueur_metres: dragCulture.longueur_metres,
       position_debut: position,
-      annee: 2026,
+      date_plantation: dragCulture.date_plantation || null,
+      date_fin_prevue: dragCulture.derniere_recolte || null,
+      annee: ANNEE,
       saison: getSaison(dragCulture.semaine_plantation),
     })
     setDragCulture(null)
@@ -62,14 +66,6 @@ export default function Reel() {
   async function retirerCultureReel(id) {
     await supabase.from('cultures').delete().eq('id', id)
     fetchData()
-  }
-
-  function getSaison(semaine) {
-    if (!semaine) return 'printemps'
-    if (semaine <= 9) return 'hiver'
-    if (semaine <= 22) return 'printemps'
-    if (semaine <= 39) return 'ete'
-    return 'automne'
   }
 
   const blocsChamp = blocs.filter(b => b.type !== 'serre')
@@ -98,7 +94,7 @@ export default function Reel() {
       <div style={{ flex: 1, overflow: 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, position: 'sticky', top: 0, background: 'var(--fond)', padding: '10px 0', zIndex: 10 }}>
           <div>
-            <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Plantation réelle 2026</h1>
+            <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Plantation réelle {ANNEE}</h1>
             <p style={{ fontSize: 12, color: 'var(--encre-douce)', marginTop: 2 }}>Positionnez les cultures au mètre près sur chaque planche</p>
           </div>
           <button onClick={() => setShowSidebar(!showSidebar)} style={{ fontSize: 12, padding: '5px 12px', border: '1px solid var(--trait)', borderRadius: 0, cursor: 'pointer', background: showSidebar ? 'var(--accent)' : 'var(--papier)', color: showSidebar ? 'var(--papier)' : 'var(--encre)' }}>
@@ -236,7 +232,7 @@ function PlancheDetail({ planche, bloc, cultures, legumes, onSave, onRetirer }) 
       statut: 'en_culture',
       longueur_metres: form.longueur_metres,
       position_debut: form.position_debut,
-      annee: 2026,
+      annee: ANNEE,
     })
     setSaving(false)
     onSave()

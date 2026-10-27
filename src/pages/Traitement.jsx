@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { semaineCourante as calculSemaineCourante, anneeCourante } from '../lib/dates'
 import { AlertTriangle, Check } from 'lucide-react'
+
+const ANNEE = anneeCourante()
 
 export default function Traitement() {
   const [series, setSeries] = useState([])
@@ -9,14 +12,14 @@ export default function Traitement() {
   const [suivis, setSuivis] = useState([])
   const [loading, setLoading] = useState(true)
   const [vue, setVue] = useState('alertes')
-  const [semaineCourante] = useState(21)
+  const [semaineCourante] = useState(calculSemaineCourante)
 
   useEffect(() => { fetchData() }, [])
 
   async function fetchData() {
     const [{ data: s }, { data: t }, { data: tt }, { data: sv }] = await Promise.all([
-      supabase.from('series').select('*, legumes(nom, familles(couleur)), varietes(nom)').order('semaine_plantation'),
-      supabase.from('serie_traitements').select('*, series(nom, semaine_plantation, longueur_metres, legumes(nom, familles(couleur))), types_traitement(nom)'),
+      supabase.from('series').select('*, legumes(nom, familles(couleur)), varietes(nom)').eq('annee', ANNEE).order('semaine_plantation'),
+      supabase.from('serie_traitements').select('*, series!inner(annee, nom, semaine_plantation, longueur_metres, legumes(nom, familles(couleur))), types_traitement(nom)').eq('series.annee', ANNEE),
       supabase.from('types_traitement').select('*').order('nom'),
       supabase.from('suivi_traitements').select('*'),
     ])
@@ -65,7 +68,7 @@ export default function Traitement() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Traitements phyto</h1>
-          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>{traitements.length} traitements planifiés · saison 2026</p>
+          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>{traitements.length} traitements planifiés · saison {ANNEE}</p>
         </div>
         <div style={{ display: 'flex', border: '1px solid var(--trait)', borderRadius: 0, overflow: 'hidden' }}>
           {[['alertes', 'Alertes'], ['planning', 'Planning'], ['suivi', 'Suivi']].map(([v, label]) => (

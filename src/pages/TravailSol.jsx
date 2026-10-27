@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
+import { supabase, chargerTout } from '../lib/supabase'
+import { anneeCourante } from '../lib/dates'
+
+const aujourdhui = () => new Date().toISOString().split('T')[0]
 
 const ETAPES = ['broyer', 'fumier', 'covercrop', 'sous_soleuse', 'cultibutte', 'granules', 'vibroplanche']
 const ETAPES_LABELS = {
@@ -17,14 +20,16 @@ export default function TravailSol() {
   const [blocSelectionne, setBlocSelectionne] = useState(null)
   const [vue, setVue] = useState('bloc')
   const [ouverts, setOuverts] = useState({})
+  // Le travail du sol se refait chaque saison : chaque année a ses propres coches
+  const [annee, setAnnee] = useState(anneeCourante)
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => { fetchData() }, [annee])
 
   async function fetchData() {
     const [{ data: b }, { data: p }, { data: t }] = await Promise.all([
       supabase.from('blocs').select('*').order('nom'),
-      supabase.from('planches').select('*').order('numero'),
-      supabase.from('travail_sol').select('*'),
+      chargerTout(() => supabase.from('planches').select('*').order('numero').order('id')),
+      chargerTout(() => supabase.from('travail_sol').select('*').eq('annee', annee).order('id')),
     ])
     setBlocs(b || [])
     setPlanches(p || [])
@@ -47,9 +52,9 @@ export default function TravailSol() {
   async function toggleTravail(plancheId, etape, passage = 1) {
     const existing = getTravail(plancheId, etape, passage)
     if (existing) {
-      await supabase.from('travail_sol').update({ fait: !existing.fait, date_fait: !existing.fait ? new Date().toISOString().split('T')[0] : null }).eq('id', existing.id)
+      await supabase.from('travail_sol').update({ fait: !existing.fait, date_fait: !existing.fait ? aujourdhui() : null }).eq('id', existing.id)
     } else {
-      await supabase.from('travail_sol').insert({ planche_id: plancheId, etape, passage, fait: true, date_fait: new Date().toISOString().split('T')[0] })
+      await supabase.from('travail_sol').insert({ planche_id: plancheId, etape, passage, annee, fait: true, date_fait: aujourdhui() })
     }
     fetchData()
   }
@@ -57,23 +62,23 @@ export default function TravailSol() {
   async function toggleBlocEntier(blocId, etape, passage = 1) {
     const planchesBloc = planches.filter(p => p.bloc_id === blocId)
     const tousCoches = planchesBloc.every(p => getTravail(p.id, etape, passage)?.fait)
-    for (const planche of planchesBloc) {
-      const existing = getTravail(planche.id, etape, passage)
-      if (existing) {
-        await supabase.from('travail_sol').update({ fait: !tousCoches, date_fait: !tousCoches ? new Date().toISOString().split('T')[0] : null }).eq('id', existing.id)
-      } else if (!tousCoches) {
-        await supabase.from('travail_sol').insert({ planche_id: planche.id, etape, passage, fait: true, date_fait: new Date().toISOString().split('T')[0] })
-      }
+    // Deux requêtes pour tout le bloc au lieu d'une par planche
+    const existants = planchesBloc.map(p => getTravail(p.id, etape, passage)).filter(Boolean)
+    const manquants = tousCoches ? [] : planchesBloc.filter(p => !getTravail(p.id, etape, passage))
+    if (existants.length) {
+      await supabase.from('travail_sol').update({ fait: !tousCoches, date_fait: !tousCoches ? aujourdhui() : null }).in('id', existants.map(t => t.id))
+    }
+    if (manquants.length) {
+      await supabase.from('travail_sol').insert(manquants.map(p => ({ planche_id: p.id, etape, passage, annee, fait: true, date_fait: aujourdhui() })))
     }
     fetchData()
   }
 
   async function effacerBlocEntier(blocId) {
-  const planchesBloc = planches.filter(p => p.bloc_id === blocId)
-  const ids = planchesBloc.map(p => p.id)
-  await supabase.from('travail_sol').delete().in('planche_id', ids)
-  fetchData()
-}
+    const ids = planches.filter(p => p.bloc_id === blocId).map(p => p.id)
+    await supabase.from('travail_sol').delete().in('planche_id', ids).eq('annee', annee)
+    fetchData()
+  }
 
   const statutCouleur = (statut) => {
     if (statut === 'prete') return { bg: 'var(--vert-pale)', border: 'var(--vert)', label: 'Prête', color: 'var(--vert-fonce)' }
@@ -88,7 +93,12 @@ export default function TravailSol() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Travail du sol</h1>
-          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>Suivi des étapes tracteur</p>
+          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>
+            Suivi des étapes tracteur · saison{' '}
+            <select value={annee} onChange={e => setAnnee(parseInt(e.target.value))} style={{ fontSize: 13, padding: '2px 6px', border: '1px solid var(--trait)', borderRadius: 0 }}>
+              {[2025, 2026, 2027, 2028].map(a => <option key={a} value={a}>{a}</option>)}
+            </select>
+          </p>
         </div>
         <div style={{ display: 'flex', border: '1px solid var(--trait)', borderRadius: 0, overflow: 'hidden' }}>
           {[['bloc', 'Vue par bloc'], ['planche', 'Vue par planche']].map(([v, label]) => (
@@ -122,7 +132,7 @@ export default function TravailSol() {
                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
   {ouvert && (
     <button
-      onClick={e => { e.stopPropagation(); if (window.confirm(`Effacer tout le travail du sol pour le bloc ${bloc.nom} ?`)) effacerBlocEntier(bloc.id) }}
+      onClick={e => { e.stopPropagation(); if (window.confirm(`Effacer tout le travail du sol ${annee} pour le bloc ${bloc.nom} ?`)) effacerBlocEntier(bloc.id) }}
       style={{ fontSize: 11, padding: '3px 8px', border: '1px solid var(--rouge-clair)', borderRadius: 0, cursor: 'pointer', background: 'var(--rouge-pale)', color: 'var(--rouge)' }}>
       Effacer tout
     </button>

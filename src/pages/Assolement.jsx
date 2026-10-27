@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { supabase } from '../lib/supabase'
+import { supabase, chargerTout } from '../lib/supabase'
+import { anneeCourante } from '../lib/dates'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 
 const MOIS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc']
@@ -20,7 +21,7 @@ export default function Assolement() {
   const [modifCulture, setModifCulture] = useState(null)
   const [triSeries, setTriSeries] = useState('recent')
   const [propositionDebord, setPropositionDebord] = useState(null)
-  const [annee, setAnnee] = useState(2026)
+  const [annee, setAnnee] = useState(anneeCourante)
   const [rechercheSerie, setRechercheSerie] = useState('')
   const [culturesSelectionnees, setCulturesSelectionnees] = useState(new Set())
   const [modeSelection, setModeSelection] = useState(false)
@@ -46,12 +47,12 @@ export default function Assolement() {
   async function fetchData() {
     const [{ data: b }, { data: p }, { data: s }, { data: c }] = await Promise.all([
       supabase.from('blocs').select('*').order('nom'),
-      supabase.from('planches').select('*').order('numero'),
-      supabase.from('series').select('*, legumes(nom, familles(couleur), espacement_plants, rangs), varietes(nom)').eq('annee', annee).order('created_at', { ascending: false }),
+      chargerTout(() => supabase.from('planches').select('*').order('numero').order('id')),
+      chargerTout(() => supabase.from('series').select('*, legumes(nom, familles(couleur), espacement_plants, rangs), varietes(nom)').eq('annee', annee).order('created_at', { ascending: false }).order('id')),
       // Cultures de l'année, plus celles d'une autre saison encore en place (ex. plantée en novembre, récoltée en février)
-      supabase.from('cultures').select('*, legumes(nom, familles(couleur)), varietes(nom)')
+      chargerTout(() => supabase.from('cultures').select('*, legumes(nom, familles(couleur)), varietes(nom)')
         .or(`annee.eq.${annee},and(date_plantation.lte.${annee}-12-31,date_fin_prevue.gte.${annee}-01-01)`)
-        .order('date_plantation'),
+        .order('date_plantation').order('id')),
     ])
     setBlocs(b || [])
     setPlanches(p || [])
@@ -102,18 +103,42 @@ export default function Assolement() {
   }
 
   // Seules les cultures présentes sur la même période prennent de la place (successions)
-  function metresOccupesPendant(culturesPlanche, debut, fin) {
-    return culturesPlanche
-      .filter(c => !c.date_plantation || !c.date_fin_prevue || (c.date_plantation <= fin && debut <= c.date_fin_prevue))
-      .reduce((acc, c) => acc + (c.longueur_metres || 0), 0)
+  // (sans dates connues, on considère que la culture occupe la planche toute la période)
+  function presentesPendant(culturesPlanche, debut, fin) {
+    if (!debut || !fin) return culturesPlanche
+    return culturesPlanche.filter(c => !c.date_plantation || !c.date_fin_prevue || (c.date_plantation <= fin && debut <= c.date_fin_prevue))
+  }
+
+  // Premier trou assez long pour `voulu` mètres sur la période ; à défaut, le plus grand trou.
+  // Renvoie { position, libre } (libre = longueur du trou)
+  function creneauLibre(plancheId, culturesPlanche, debut, fin, voulu) {
+    const prises = presentesPendant(culturesPlanche, debut, fin)
+      .map(c => [Number(c.position_debut) || 0, (Number(c.position_debut) || 0) + Number(c.longueur_metres || 0)])
+      .sort((a, b) => a[0] - b[0])
+    const trous = []
+    let curseur = 0
+    for (const [deb, fn] of prises) {
+      if (deb > curseur) trous.push({ position: curseur, libre: deb - curseur })
+      curseur = Math.max(curseur, fn)
+    }
+    const longueur = longueurPlanche(plancheId)
+    if (longueur > curseur) trous.push({ position: curseur, libre: longueur - curseur })
+    return trous.find(t => t.libre >= voulu) || trous.sort((a, b) => b.libre - a.libre)[0] || { position: 0, libre: 0 }
   }
 
   async function placerSerie(plancheId, serie) {
     if (!serie) return
 
     if (serie._deplacer) {
-      await supabase.from('cultures').update({ planche_id: plancheId }).eq('id', serie._cultureId)
+      // Déplacement vers une autre planche : il faut la place sur toute la période de la culture
+      const autres = cultures.filter(c => c.planche_id === plancheId && c.id !== serie._cultureId)
+      const { position, libre } = creneauLibre(plancheId, autres, serie.date_plantation, serie.date_fin_prevue, serie.longueur_metres)
       setDragSerie(null)
+      if (libre < serie.longueur_metres) {
+        alert(`Pas assez de place sur cette planche : ${libre} m libres pour ${serie.longueur_metres} m.`)
+        return
+      }
+      await supabase.from('cultures').update({ planche_id: plancheId, position_debut: position }).eq('id', serie._cultureId)
       fetchData()
       return
     }
@@ -133,16 +158,15 @@ export default function Assolement() {
     const debut = serie.date_plantation || semaineToDate(semPlantation, annee)
     const fin = serie.derniere_recolte || semaineToDate(semPlantation + dureeSemaines, annee)
     const culturesPlanche = cultures.filter(c => c.planche_id === plancheId)
-    const metresOccupes = metresOccupesPendant(culturesPlanche, debut, fin)
-    const metresDisponibles = longueurPlanche(plancheId) - metresOccupes
     const metresASerie = serie.longueur_metres || 50
+    const { position, libre: metresDisponibles } = creneauLibre(plancheId, culturesPlanche, debut, fin, metresASerie)
 
     if (metresASerie > metresDisponibles) {
       const planchesBloc = planches.filter(p => p.bloc_id === bloc?.id).sort((a, b) => a.numero - b.numero)
       const indexActuel = planchesBloc.findIndex(p => p.id === plancheId)
       const plancheSuivante = planchesBloc[indexActuel + 1]
       setPropositionDebord({
-        serie, plancheId,
+        serie, plancheId, position,
         plancheSuivante: plancheSuivante || null,
         metresPlanche: metresDisponibles,
         metresDebord: metresASerie - metresDisponibles,
@@ -162,7 +186,7 @@ export default function Assolement() {
       date_fin_prevue: fin,
       premiere_recolte: serie.premiere_recolte || null,
       longueur_metres: metresASerie,
-      position_debut: metresOccupes,
+      position_debut: position,
       saison, annee,
     })
     setDragSerie(null)
@@ -179,10 +203,10 @@ export default function Assolement() {
   }
 
   async function confirmerDebord(accepter) {
-    const { serie, plancheId, plancheSuivante, metresPlanche, metresDebord, debut, fin } = propositionDebord
+    const { serie, plancheId, position, plancheSuivante, metresPlanche, metresDebord, debut, fin } = propositionDebord
     const semPlantation = serie.semaine_plantation || 14
 
-    await supabase.from('cultures').insert({
+    if (metresPlanche > 0) await supabase.from('cultures').insert({
       planche_id: plancheId,
       legume_id: serie.legume_id,
       variete_id: serie.variete_id || null,
@@ -192,7 +216,7 @@ export default function Assolement() {
       date_fin_prevue: fin,
       premiere_recolte: serie.premiere_recolte || null,
       longueur_metres: metresPlanche,
-      position_debut: longueurPlanche(plancheId) - metresPlanche,
+      position_debut: position,
       saison: getSaison(semPlantation), annee,
     })
 
@@ -207,9 +231,8 @@ export default function Assolement() {
       while (resteAplacer > 0 && indexCourant < planchesBloc.length) {
         const plancheActuelle = planchesBloc[indexCourant]
         const culturesActuelle = cultures.filter(c => c.planche_id === plancheActuelle.id)
-        const metresOccupes = metresOccupesPendant(culturesActuelle, debut, fin)
-        const metresDisponibles = longueurPlanche(plancheActuelle.id) - metresOccupes
-        const metresAplacer = Math.min(resteAplacer, metresDisponibles)
+        const { position: positionLibre, libre } = creneauLibre(plancheActuelle.id, culturesActuelle, debut, fin, resteAplacer)
+        const metresAplacer = Math.min(resteAplacer, libre)
 
         if (metresAplacer > 0) {
           await supabase.from('cultures').insert({
@@ -222,7 +245,7 @@ export default function Assolement() {
             date_fin_prevue: fin,
             premiere_recolte: serie.premiere_recolte || null,
             longueur_metres: metresAplacer,
-            position_debut: metresOccupes,
+            position_debut: positionLibre,
             saison: getSaison(semPlantation), annee,
           })
           resteAplacer -= metresAplacer
@@ -260,17 +283,26 @@ export default function Assolement() {
       return
     }
 
-    const ancienneLongueur = cultureActuelle.longueur_metres || 0
+    const ancienneLongueur = Number(cultureActuelle.longueur_metres) || 0
     const nouvelleLongueur = updates.longueur_metres || ancienneLongueur
-    const longueurCorrigee = Math.min(nouvelleLongueur, longueurPlanche(cultureActuelle.planche_id) - (cultureActuelle.position_debut || 0))
+    const debutCulture = updates.date_plantation || cultureActuelle.date_plantation
+    const finCulture = updates.date_fin_prevue || cultureActuelle.date_fin_prevue
+    // Sur la planche actuelle, la culture peut s'étendre jusqu'à la prochaine culture présente en même temps
+    const positionActuelle = Number(cultureActuelle.position_debut) || 0
+    const voisinesApres = presentesPendant(cultures.filter(c => c.planche_id === cultureActuelle.planche_id && c.id !== id), debutCulture, finCulture)
+      .map(c => Number(c.position_debut) || 0)
+      .filter(p => p >= positionActuelle)
+    const limite = Math.min(longueurPlanche(cultureActuelle.planche_id), ...voisinesApres)
+    const longueurCorrigee = Math.min(nouvelleLongueur, Math.max(ancienneLongueur, limite - positionActuelle))
 
     await supabase.from('cultures').update({
       ...updates,
       longueur_metres: longueurCorrigee
     }).eq('id', id)
 
-    if (nouvelleLongueur > ancienneLongueur) {
-      const surplus = nouvelleLongueur - ancienneLongueur
+    // Seul ce qui n'a pas tenu sur la planche actuelle est reporté sur les suivantes
+    if (nouvelleLongueur > longueurCorrigee) {
+      const surplus = nouvelleLongueur - longueurCorrigee
       const plancheId = cultureActuelle.planche_id
       const bloc = blocs.find(b => planches.find(p => p.id === plancheId && p.bloc_id === b.id))
       const planchesBloc = planches.filter(p => p.bloc_id === bloc?.id).sort((a, b) => a.numero - b.numero)
@@ -287,33 +319,25 @@ export default function Assolement() {
       while (resteAplacer > 0 && indexCourant < planchesBloc.length) {
         const plancheActuelle = planchesBloc[indexCourant]
         const culturesPlanche = (toutesLesCultures || []).filter(c => c.planche_id === plancheActuelle.id)
-        const metresOccupes = metresOccupesPendant(culturesPlanche, cultureActuelle.date_plantation, cultureActuelle.date_fin_prevue)
-        const metresDisponibles = longueurPlanche(plancheActuelle.id) - metresOccupes
-        const metresAplacer = Math.min(resteAplacer, metresDisponibles)
+        const { position: positionLibre, libre } = creneauLibre(plancheActuelle.id, culturesPlanche, debutCulture, finCulture, resteAplacer)
+        const metresAplacer = Math.min(resteAplacer, libre)
 
         if (metresAplacer > 0) {
-          const existeDeja = culturesPlanche.find(c => c.serie_id === cultureActuelle.serie_id)
-          if (existeDeja) {
-            await supabase.from('cultures').update({
-              longueur_metres: existeDeja.longueur_metres + metresAplacer
-            }).eq('id', existeDeja.id)
-          } else {
-            await supabase.from('cultures').insert({
-              planche_id: plancheActuelle.id,
-              legume_id: cultureActuelle.legume_id,
-              variete_id: cultureActuelle.variete_id || null,
-              serie_id: cultureActuelle.serie_id,
-              type: cultureActuelle.type,
-              statut: cultureActuelle.statut,
-              date_plantation: cultureActuelle.date_plantation,
-              date_fin_prevue: cultureActuelle.date_fin_prevue,
-              premiere_recolte: cultureActuelle.premiere_recolte,
-              longueur_metres: metresAplacer,
-              position_debut: metresOccupes,
-              saison: cultureActuelle.saison,
-              annee: cultureActuelle.annee,
-            })
-          }
+          await supabase.from('cultures').insert({
+            planche_id: plancheActuelle.id,
+            legume_id: cultureActuelle.legume_id,
+            variete_id: cultureActuelle.variete_id || null,
+            serie_id: cultureActuelle.serie_id,
+            type: updates.type || cultureActuelle.type,
+            statut: updates.statut || cultureActuelle.statut,
+            date_plantation: debutCulture,
+            date_fin_prevue: finCulture,
+            premiere_recolte: cultureActuelle.premiere_recolte,
+            longueur_metres: metresAplacer,
+            position_debut: positionLibre,
+            saison: cultureActuelle.saison,
+            annee: cultureActuelle.annee,
+          })
           resteAplacer -= metresAplacer
         }
         indexCourant++
@@ -608,7 +632,7 @@ function ModifForm({ culture, onSave, onCancel }) {
       </div>
       <div style={{ marginBottom: 8 }}>
         <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Longueur (m)</div>
-        <input type="number" value={longueur} onChange={e => setLongueur(parseInt(e.target.value))}
+        <input type="number" step="0.5" value={longueur} onChange={e => setLongueur(parseFloat(e.target.value))}
           style={{ width: '100%', fontSize: 12, padding: '5px 7px', border: '1px solid var(--trait)', borderRadius: 0 }} />
       </div>
       <div style={{ marginBottom: 8 }}>

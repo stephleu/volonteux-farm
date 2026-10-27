@@ -1,16 +1,10 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { semaineIso, anneeCourante } from '../lib/dates'
 import { Plus, X } from 'lucide-react'
 
 const FOURNISSEURS = ['Pépinière interne', 'Desbos', 'Pépi', 'agrosemence', 'agrodia', 'valsoleil', 'Payson ferme', 'GIA ail dromois', 'Semis direct']
-const ANNEES = [2025, 2026, 2027]
-
-function semaineIso(dateStr) {
-  const d = new Date(dateStr + 'T12:00:00Z')
-  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7) + 3)
-  const premierJeudi = new Date(Date.UTC(d.getUTCFullYear(), 0, 4))
-  return 1 + Math.round(((d - premierJeudi) / 86400000 - 3 + ((premierJeudi.getUTCDay() + 6) % 7)) / 7)
-}
+const ANNEES = [2025, 2026, 2027, 2028]
 
 const dateCourte = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) : ''
 
@@ -29,11 +23,12 @@ export default function Series() {
   const [filtreNom, setFiltreNom] = useState('')
   const [legumeSelectionne, setLegumeSelectionne] = useState(null)
   const [serieEnModif, setSerieEnModif] = useState(null)
-  const [annee, setAnnee] = useState(2026)
+  const [annee, setAnnee] = useState(anneeCourante)
+  // La nouvelle série prend l'année affichée (une date au champ la corrige ensuite)
   const formVide = {
     legume_id: '', variete_id: '', nom: '',
     fournisseur: 'Pépinière interne', type: 'plant',
-    longueur_metres: 50, semaine_plantation: '', annee: 2026, notes: '',
+    longueur_metres: 50, semaine_plantation: '', annee, notes: '',
     rangs: '', espacement_plants: '', date_plantation: '', premiere_recolte: '', derniere_recolte: '',
   }
   const [form, setForm] = useState(formVide)
@@ -170,7 +165,7 @@ export default function Series() {
             </select>
           </p>
         </div>
-        <button onClick={() => setShowForm(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: 'var(--papier)', border: 'none', borderRadius: 0, padding: '8px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
+        <button onClick={() => { setForm(formVide); setShowForm(true) }} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: 'var(--papier)', border: 'none', borderRadius: 0, padding: '8px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
           <Plus size={14} /> Nouvelle série
         </button>
       </div>
@@ -226,8 +221,8 @@ export default function Series() {
             </div>
             <div>
               <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 4 }}>Longueur (m)</div>
-              <input type="number" min="5" step="5" value={form.longueur_metres}
-                onChange={e => setForm({ ...form, longueur_metres: parseInt(e.target.value) })} style={inputStyle} />
+              <input type="number" min="0.5" step="0.5" value={form.longueur_metres}
+                onChange={e => setForm({ ...form, longueur_metres: parseFloat(e.target.value) })} style={inputStyle} />
             </div>
             <div>
               <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 4 }}>Rangs</div>
@@ -369,8 +364,8 @@ export default function Series() {
                 </div>
                 <div>
                   <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Longueur (m)</div>
-                  <input type="number" min="5" step="5" value={serieEnModif.longueur_metres}
-                    onChange={e => setSerieEnModif({ ...serieEnModif, longueur_metres: parseInt(e.target.value) })} style={inputStyle} />
+                  <input type="number" min="0.5" step="0.5" value={serieEnModif.longueur_metres}
+                    onChange={e => setSerieEnModif({ ...serieEnModif, longueur_metres: parseFloat(e.target.value) })} style={inputStyle} />
                 </div>
                 <div>
                   <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Rangs</div>

@@ -23,9 +23,11 @@ const APPLIQUER = process.argv.includes('--apply')
 const EFFACER = process.argv.includes('--effacer')
 
 const sourceClient = fs.readFileSync(path.join(ICI, '../src/lib/supabase.js'), 'utf8')
+// Depuis la sécurisation de la base, les scripts ont besoin de la clé « service_role »
+// (Supabase > Project Settings > API), passée en variable d'environnement, jamais écrite dans le code
 const supabase = createClient(
   sourceClient.match(/supabaseUrl = '([^']+)'/)[1],
-  sourceClient.match(/supabaseKey = '([^']+)'/)[1],
+  process.env.SUPABASE_SERVICE_ROLE_KEY || sourceClient.match(/supabaseKey = '([^']+)'/)[1],
 )
 
 const GROUPES = {

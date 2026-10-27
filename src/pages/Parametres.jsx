@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
+import { supabase, chargerTout } from '../lib/supabase'
 import { Plus, ChevronRight } from 'lucide-react'
+
+// Mêmes groupes que l'Historique : la rotation est définie par groupe de blocs
+const GROUPES_BLOCS = {
+  A: ['A1', 'A2'], B: ['B1', 'B2', 'B3'], C: ['C'],
+  D: ['D'], E: ['E'], F: ['F1', 'F2'], G: ['G'], H: ['H1', 'H2'],
+}
 
 export default function Parametres() {
   const [onglet, setOnglet] = useState('legumes')
@@ -78,7 +84,8 @@ export default function Parametres() {
                 Sélectionnez un légume pour voir sa fiche
               </div>
             )}
-            {selected && <FicheLegume legume={selected === 'new' ? null : selected} familles={familles} onSave={fetchData} />}
+            {/* key : un autre légume = un formulaire neuf, sinon il garde les valeurs du précédent */}
+            {selected && <FicheLegume key={selected === 'new' ? 'new' : selected.id} legume={selected === 'new' ? null : selected} familles={familles} onSave={fetchData} />}
           </div>
         </div>
       )}
@@ -177,12 +184,15 @@ function FicheLegume({ legume, familles, onSave }) {
 
   async function handleSave() {
     setSaving(true)
-    if (legume) {
-      await supabase.from('legumes').update(form).eq('id', legume.id)
-    } else {
-      await supabase.from('legumes').insert(form)
-    }
+    const payload = { ...form, famille_id: form.famille_id || null }
+    const { error } = legume
+      ? await supabase.from('legumes').update(payload).eq('id', legume.id)
+      : await supabase.from('legumes').insert(payload)
     setSaving(false)
+    if (error) {
+      alert(`Enregistrement impossible : ${error.message}`)
+      return
+    }
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
     onSave()
@@ -318,108 +328,88 @@ function GestionAnnees({ blocs }) {
     setRotations(data || [])
   }
 
-  async function dupliquerAnneePleinChamp() {
-  setLoading(true)
-  setMessages([])
-  const msgs = []
-
-  const rotationCourte = ['A1', 'A2', 'B1', 'B2', 'B3', 'C']
-  const rotationLongue = ['D', 'E', 'F1', 'F2', 'G', 'H1', 'H2']
-  let totalDupliquees = 0
-
-  async function dupliquerGroupe(groupeBlocs) {
-    for (let i = 0; i < groupeBlocs.length; i++) {
-      const nomBlocDest = groupeBlocs[i]
-      const nomBlocSource = groupeBlocs[(i - 1 + groupeBlocs.length) % groupeBlocs.length]
-
-      const blocDest = blocs.find(b => b.nom === nomBlocDest)
-      const blocSource = blocs.find(b => b.nom === nomBlocSource)
-      if (!blocDest || !blocSource) continue
-
-      if (blocDest.nombre_planches < blocSource.nombre_planches) {
-        msgs.push({ type: 'warning', text: `${nomBlocDest} a ${blocDest.nombre_planches} planches vs ${blocSource.nombre_planches} en source (${nomBlocSource}) — certaines cultures peuvent ne pas rentrer` })
-      }
-
-      const { data: planches } = await supabase
-        .from('planches')
-        .select('*')
-        .eq('bloc_id', blocSource.id)
-
-      const { data: cultures } = await supabase
-        .from('cultures')
-        .select('*, series(*)')
-        .in('planche_id', (planches || []).map(p => p.id))
-        .eq('annee', anneeSource)
-        .eq('type', 'prevu')
-
-      const seriesUniques = [...new Map((cultures || []).map(c => [c.serie_id, c.series])).entries()]
-        .map(([, s]) => s).filter(Boolean)
-
-      for (const serie of seriesUniques) {
-        await supabase.from('series').insert({
-          legume_id: serie.legume_id,
-          variete_id: serie.variete_id || null,
-          nom: serie.nom,
-          fournisseur: serie.fournisseur,
-          type: serie.type,
-          longueur_metres: serie.longueur_metres,
-          semaine_plantation: serie.semaine_plantation,
-          nombre_plants: serie.nombre_plants,
-          annee: anneeDestination,
-          notes: serie.notes,
-        })
-        totalDupliquees++
-      }
-
-      msgs.push({ type: 'success', text: `${nomBlocDest} ← ${nomBlocSource} : ${seriesUniques.length} séries dupliquées` })
-    }
+  // L'année destination a-t-elle déjà des séries ? (évite de dupliquer deux fois, ou par-dessus un plan généré)
+  async function destinationLibre() {
+    const { count } = await supabase.from('series').select('id', { count: 'exact', head: true }).eq('annee', anneeDestination)
+    return !count || window.confirm(`${anneeDestination} a déjà ${count} séries. Dupliquer quand même (risque de doublons) ?`)
   }
 
-  await dupliquerGroupe(rotationCourte)
-  await dupliquerGroupe(rotationLongue)
+  // Séries posées en `anneeSource` sur ces blocs, chacune une seule fois
+  async function seriesDesBlocs(idsBlocs) {
+    const { data: planches } = await supabase.from('planches').select('id').in('bloc_id', idsBlocs)
+    const { data: cultures } = await chargerTout(() => supabase.from('cultures').select('serie_id, series(*)')
+      .in('planche_id', (planches || []).map(p => p.id)).eq('annee', anneeSource).eq('type', 'prevu').order('id'))
+    return [...new Map((cultures || []).filter(c => c.series).map(c => [c.serie_id, c.series])).values()]
+  }
 
-  msgs.push({ type: 'info', text: `Total : ${totalDupliquees} séries créées pour ${anneeDestination}` })
-  setMessages(msgs)
-  setLoading(false)
-}
+  // Même semaine, même jour : on décale de 52 semaines par année d'écart
+  const decaler = date => {
+    if (!date) return null
+    const d = new Date(date + 'T12:00:00Z')
+    d.setUTCDate(d.getUTCDate() + 364 * (anneeDestination - anneeSource))
+    return d.toISOString().slice(0, 10)
+  }
 
-  async function dupliquerAnneeSerres() {
+  const copieSerie = serie => ({
+    legume_id: serie.legume_id,
+    variete_id: serie.variete_id || null,
+    nom: serie.nom,
+    fournisseur: serie.fournisseur,
+    type: serie.type,
+    longueur_metres: serie.longueur_metres,
+    semaine_plantation: serie.semaine_plantation,
+    nombre_plants: serie.nombre_plants,
+    rangs: serie.rangs,
+    espacement_plants: serie.espacement_plants,
+    sous_abri: serie.sous_abri,
+    date_plantation: decaler(serie.date_plantation),
+    premiere_recolte: decaler(serie.premiere_recolte),
+    derniere_recolte: decaler(serie.derniere_recolte),
+    annee: anneeDestination,
+    notes: serie.notes,
+  })
+
+  async function dupliquerAnneePleinChamp() {
+    if (!(await destinationLibre())) return
     setLoading(true)
     setMessages([])
     const msgs = []
+    const nouvelles = []
 
-    const blocsSerre = blocs.filter(b => b.type === 'serre')
-    const { data: planches } = await supabase
-      .from('planches')
-      .select('*')
-      .in('bloc_id', blocsSerre.map(b => b.id))
-
-    const { data: cultures } = await supabase
-      .from('cultures')
-      .select('*, series(*)')
-      .in('planche_id', (planches || []).map(p => p.id))
-      .eq('annee', anneeSource)
-
-    const seriesUniques = [...new Map((cultures || []).map(c => [c.serie_id, c.series])).entries()]
-      .map(([, s]) => s).filter(Boolean)
-
-    for (const serie of seriesUniques) {
-      await supabase.from('series').insert({
-        legume_id: serie.legume_id,
-        variete_id: serie.variete_id || null,
-        nom: serie.nom,
-        fournisseur: serie.fournisseur,
-        type: serie.type,
-        longueur_metres: serie.longueur_metres,
-        semaine_plantation: serie.semaine_plantation,
-        nombre_plants: serie.nombre_plants,
-        annee: anneeDestination,
-        notes: serie.notes,
-      })
+    // Chaque groupe destination reçoit les séries du groupe qui avait la même rotation l'année source
+    const idBloc = nom => blocs.find(b => b.nom === nom)?.id
+    const rotationDe = (groupe, annee) => rotations.find(r => r.bloc_id === idBloc(groupe[0]) && r.annee === annee)?.description
+    for (const [nom, sousBlocs] of Object.entries(GROUPES_BLOCS)) {
+      const voulue = rotationDe(sousBlocs, anneeDestination)
+      const source = Object.entries(GROUPES_BLOCS).find(([, sb]) => voulue && rotationDe(sb, anneeSource) === voulue)
+      if (!source) {
+        msgs.push({ type: 'warning', text: `${nom} : aucun bloc n'avait « ${voulue || 'rotation non définie'} » en ${anneeSource}` })
+        continue
+      }
+      const series = await seriesDesBlocs(source[1].map(idBloc).filter(Boolean))
+      nouvelles.push(...series.map(copieSerie))
+      msgs.push({ type: 'success', text: `${nom} ← ${source[0]} · ${voulue} : ${series.length} séries` })
     }
 
-    msgs.push({ type: 'success', text: `${seriesUniques.length} séries serre dupliquées pour ${anneeDestination} — à replacer manuellement` })
+    const { error } = nouvelles.length ? await supabase.from('series').insert(nouvelles) : {}
+    msgs.push(error
+      ? { type: 'warning', text: `Échec de l'enregistrement : ${error.message}` }
+      : { type: 'info', text: `Total : ${nouvelles.length} séries créées pour ${anneeDestination}, à placer dans l'Assolement` })
     setMessages(msgs)
+    setLoading(false)
+  }
+
+  async function dupliquerAnneeSerres() {
+    if (!(await destinationLibre())) return
+    setLoading(true)
+    setMessages([])
+
+    const series = await seriesDesBlocs(blocs.filter(b => b.type === 'serre').map(b => b.id))
+    const { error } = series.length ? await supabase.from('series').insert(series.map(copieSerie)) : {}
+
+    setMessages([error
+      ? { type: 'warning', text: `Échec de l'enregistrement : ${error.message}` }
+      : { type: 'success', text: `${series.length} séries serre dupliquées pour ${anneeDestination} — à replacer manuellement` }])
     setLoading(false)
   }
 

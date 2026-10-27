@@ -1,23 +1,18 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { semaineCourante as calculSemaineCourante, anneeCourante, getSaison as getSaisonFromSemaine } from '../lib/dates'
 import { AlertTriangle } from 'lucide-react'
 
 const MOIS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
+const ANNEE = anneeCourante()
 
-function getSemaineToDate(semaine, annee = 2026) {
+function getSemaineToDate(semaine, annee = ANNEE) {
   const d = new Date(annee, 0, 1 + (semaine - 1) * 7)
   return d
 }
 
 function getMoisFromSemaine(semaine) {
   return getSemaineToDate(semaine).getMonth()
-}
-
-function getSaisonFromSemaine(semaine) {
-  if (semaine <= 9) return 'hiver'
-  if (semaine <= 22) return 'printemps'
-  if (semaine <= 39) return 'ete'
-  return 'automne'
 }
 
 function getSemainesPrepa(semaine) {
@@ -31,7 +26,7 @@ export default function Planning() {
   const [vue, setVue] = useState('semaine')
   const [filtreFournisseur, setFiltreFournisseur] = useState('tous')
   const [filtreType, setFiltreType] = useState('tous')
-  const [semaineCourante] = useState(21)
+  const [semaineCourante] = useState(calculSemaineCourante)
   const [voirTout, setVoirTout] = useState(false)
 
   useEffect(() => { fetchData() }, [])
@@ -41,7 +36,7 @@ export default function Planning() {
       .from('cultures')
       .select('serie_id')
       .not('serie_id', 'is', null)
-      .eq('annee', 2026)
+      .eq('annee', ANNEE)
 
     const seriesIds = [...new Set((cultures || []).map(c => c.serie_id))]
 
@@ -99,7 +94,7 @@ export default function Planning() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Planning plantation</h1>
-          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>Saison 2026 · {series.length} séries planifiées</p>
+          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>Saison {ANNEE} · {series.length} séries planifiées</p>
         </div>
         <div style={{ display: 'flex', border: '1px solid var(--trait)', borderRadius: 0, overflow: 'hidden' }}>
           {[['semaine', 'Par semaine'], ['mois', 'Par mois'], ['fournisseur', 'Fournisseurs'], ['alertes', 'Alertes']].map(([v, label]) => (
@@ -139,7 +134,7 @@ export default function Planning() {
             const semainesPrepa = getSemainesPrepa(sem)
             const semaineDebutPrepa = sem - semainesPrepa
             const urgence = semaineDebutPrepa <= semaineCourante + 1
-            const date = getSemaineToDate(sem, 2026)
+            const date = getSemaineToDate(sem)
             const dateStr = date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
             const totalPlants = seriesSem.filter(s => s.type === 'plant').reduce((acc, s) => acc + (s.nombre_plants || 0), 0)
             return (

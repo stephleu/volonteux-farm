@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { semaineCourante as calculSemaineCourante, anneeCourante } from '../lib/dates'
 import { AlertTriangle, Check } from 'lucide-react'
+
+const ANNEE = anneeCourante()
 
 const SURFACE_PLANCHE = 70
 const SACS_KG = 25
@@ -11,14 +14,14 @@ export default function Fertilisation() {
   const [suivis, setSuivis] = useState([])
   const [loading, setLoading] = useState(true)
   const [vue, setVue] = useState('alertes')
-  const [semaineCourante] = useState(21)
+  const [semaineCourante] = useState(calculSemaineCourante)
 
   useEffect(() => { fetchData() }, [])
 
   async function fetchData() {
     const [{ data: s }, { data: f }, { data: sv }] = await Promise.all([
-      supabase.from('series').select('*, legumes(nom, familles(couleur)), varietes(nom)').order('semaine_plantation'),
-      supabase.from('serie_fertilisations').select('*, series(nom, semaine_plantation, longueur_metres, legumes(nom))'),
+      supabase.from('series').select('*, legumes(nom, familles(couleur)), varietes(nom)').eq('annee', ANNEE).order('semaine_plantation'),
+      supabase.from('serie_fertilisations').select('*, series!inner(annee, nom, semaine_plantation, longueur_metres, legumes(nom))').eq('series.annee', ANNEE),
       supabase.from('suivi_ferti').select('*'),
     ])
     setSeries(s || [])
@@ -77,7 +80,7 @@ export default function Fertilisation() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Fertilisation</h1>
-          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>{fertilisations.length} passages planifiés · saison 2026</p>
+          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>{fertilisations.length} passages planifiés · saison {ANNEE}</p>
         </div>
         <div style={{ display: 'flex', flexShrink: 0, border: '1px solid var(--trait)', borderRadius: 0, overflow: 'hidden' }}>
           {[['alertes', 'Alertes'], ['planning', 'Planning'], ['suivi', 'Suivi']].map(([v, label]) => (

@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { semaineCourante, anneeCourante } from '../lib/dates'
 import { AlertTriangle, Bell, Tractor, Sprout, Shield } from 'lucide-react'
 
-const SEMAINE_COURANTE = 21
+const SEMAINE_COURANTE = semaineCourante()
+const ANNEE = anneeCourante()
 
 function getSemainesPrepa(semaine) {
   if (semaine <= 9 || semaine >= 44) return 5
@@ -20,9 +22,9 @@ export default function Dashboard() {
 
   async function fetchData() {
     const [{ data: s }, { data: f }, { data: t }, { data: c }] = await Promise.all([
-      supabase.from('series').select('*, legumes(nom, familles(couleur))').order('semaine_plantation'),
-      supabase.from('serie_fertilisations').select('*, series(nom, semaine_plantation, longueur_metres, legumes(nom))'),
-      supabase.from('serie_traitements').select('*, series(nom, semaine_plantation, legumes(nom)), types_traitement(nom)'),
+      supabase.from('series').select('*, legumes(nom, familles(couleur))').eq('annee', ANNEE).order('semaine_plantation'),
+      supabase.from('serie_fertilisations').select('*, series!inner(nom, annee, semaine_plantation, longueur_metres, legumes(nom))').eq('series.annee', ANNEE),
+      supabase.from('serie_traitements').select('*, series!inner(nom, annee, semaine_plantation, legumes(nom)), types_traitement(nom)').eq('series.annee', ANNEE),
       supabase.from('mercuriale_commandes')
         .select('*, mercuriale_epiceries(nom), mercuriale_lignes(*, mercuriale_produits(nom, variete, unite, nombre_par_colis))')
         .in('statut', ['en_attente', 'confirmee'])
@@ -66,7 +68,7 @@ export default function Dashboard() {
     <div>
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Tableau de bord</h1>
-        <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>Semaine {SEMAINE_COURANTE} · saison 2026</p>
+        <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>Semaine {SEMAINE_COURANTE} · saison {ANNEE}</p>
       </div>
 
       {loading && <p style={{ fontSize: 13, color: 'var(--encre-douce)' }}>Chargement...</p>}

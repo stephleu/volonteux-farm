@@ -3,6 +3,7 @@
 //   node scripts/plan-2027.mjs            → simulation, rien n'est écrit
 //   node scripts/plan-2027.mjs --apply    → crée les séries et placements 2027
 //   node scripts/plan-2027.mjs --effacer  → supprime tout ce que ce script a créé
+//   node scripts/plan-2027.mjs --serres [--apply] → ne refait que les serres (plein champ inchangé)
 //
 // Plein champ : chaque bloc reçoit en 2027 les cultures du bloc qui avait sa rotation en 2026
 // (vérifié contre rotations_planifiees). Les séries gardent leurs mètres et leurs dates
@@ -20,6 +21,7 @@ const ICI = path.dirname(fileURLToPath(import.meta.url))
 const ANNEE = 2027
 const MARQUE = 'Plan 2027 généré'
 const APPLIQUER = process.argv.includes('--apply')
+const SERRES_SEULEMENT = process.argv.includes('--serres')
 const EFFACER = process.argv.includes('--effacer')
 
 const sourceClient = fs.readFileSync(path.join(ICI, '../src/lib/supabase.js'), 'utf8')
@@ -84,13 +86,25 @@ const decaler = (date, ans) => {
   return d.toISOString().slice(0, 10)
 }
 
-const [blocs, planches, series, cultures, rotations] = await Promise.all([
-  tout('blocs'), tout('planches'), tout('series'), tout('cultures'), tout('rotations_planifiees'),
+const [blocs, planches, series, toutesCultures, rotations, legumes] = await Promise.all([
+  tout('blocs'), tout('planches'), tout('series'), tout('cultures'), tout('rotations_planifiees'), tout('legumes'),
 ])
-if (series.some(s => s.annee === ANNEE && s.notes === MARQUE)) {
-  console.error(`Un plan ${ANNEE} généré existe déjà : lancer d'abord --effacer.`)
+
+// --serres : on ne refait que les serres du plan généré (le plein champ validé ne bouge pas)
+const idsBlocsSerre = new Set(blocs.filter(b => b.type === 'serre').map(b => b.id))
+const planchesSerre = new Set(planches.filter(p => idsBlocsSerre.has(p.bloc_id)).map(p => p.id))
+const culturesAEffacer = SERRES_SEULEMENT
+  ? toutesCultures.filter(c => c.notes === MARQUE && c.annee === ANNEE && planchesSerre.has(c.planche_id))
+  : []
+const seriesAEffacer = [...new Set(culturesAEffacer.map(c => c.serie_id))]
+const idsAEffacer = new Set(culturesAEffacer.map(c => c.id))
+const cultures = toutesCultures.filter(c => !idsAEffacer.has(c.id))
+
+if (!SERRES_SEULEMENT && series.some(s => s.annee === ANNEE && s.notes === MARQUE)) {
+  console.error(`Un plan ${ANNEE} généré existe déjà : lancer d'abord --effacer (ou --serres pour ne refaire que les serres).`)
   process.exit(1)
 }
+if (SERRES_SEULEMENT) console.log(`Serres : ${culturesAEffacer.length} placements et ${seriesAEffacer.length} séries ${ANNEE} générés seront remplacés.\n`)
 
 const blocParNom = new Map(blocs.map(b => [b.nom, b]))
 const blocDe = new Map(planches.map(p => [p.id, blocs.find(b => b.id === p.bloc_id)]))
@@ -130,6 +144,22 @@ function occuper(planche, position, metres, debut, fin) {
   occupation.set(planche.id, [...(occupation.get(planche.id) || []), { debut, fin, position, longueur: metres }])
 }
 
+// Pose `metres` sur les planches, dans l'ordre, dans les créneaux libres de la période
+function poser(planchesCible, metres, debut, fin, premiere) {
+  const placements = []
+  let reste = metres
+  for (const planche of planchesCible) {
+    if (reste <= 0) break
+    const [position, libre] = creneauLibre(planche, debut, fin)
+    if (libre < 1) continue
+    const m = Math.min(reste, libre)
+    occuper(planche, position, m, debut, fin)
+    placements.push({ planche, position, longueur: m, debut, fin, premiere })
+    reste -= m
+  }
+  return { placements, reste }
+}
+
 function serie2027(source, metres, ans = 1) {
   return {
     legume_id: source.legume_id,
@@ -156,7 +186,7 @@ function serie2027(source, metres, ans = 1) {
 const premierSousBloc = g => blocParNom.get(GROUPES[g][0])?.id
 const rotation = (g, annee) => rotations.find(r => r.bloc_id === premierSousBloc(g) && r.annee === annee)?.description
 
-for (const [cible, source] of Object.entries(BLOCS_2027)) {
+for (const [cible, source] of SERRES_SEULEMENT ? [] : Object.entries(BLOCS_2027)) {
   const voulu = rotation(cible, ANNEE)
   const fourni = rotation(source, ANNEE - 1)
   if (voulu !== fourni) {
@@ -182,17 +212,7 @@ for (const [cible, source] of Object.entries(BLOCS_2027)) {
     const ligne = serie2027(s, metres)
     const debut = ligne.date_plantation
     const fin = ligne.derniere_recolte || debut
-    const placements = []
-    let reste = metres
-    for (const planche of planchesCible) {
-      if (reste <= 0) break
-      const [position, libre] = creneauLibre(planche, debut, fin)
-      if (libre < 1) continue
-      const m = Math.min(reste, libre)
-      occuper(planche, position, m, debut, fin)
-      placements.push({ planche, position, longueur: m, debut, fin, premiere: ligne.premiere_recolte })
-      reste -= m
-    }
+    const { placements, reste } = poser(planchesCible, metres, debut, fin, ligne.premiere_recolte)
     if (reste > 0) {
       // Le reste devient une série à part, sans emplacement, à placer à la main (ex. bloc I)
       manques.push(`${cible} : ${s.nom} — ${reste} m sur ${metres} ne rentrent pas`)
@@ -209,36 +229,86 @@ for (const [cible, source] of Object.entries(BLOCS_2027)) {
 
 // ---------- Serres ----------
 
+// Chaque série est posée dans les créneaux libres de sa serre (sans chevaucher les autres
+// cultures, y compris celles plantées fin 2026 et encore en place). Ce qui ne rentre pas va
+// ensuite dans les serres qui ont de la place. Les choux sortent des serres : plein champ, avec les salades.
+const nomLegume = new Map(legumes.map(l => [l.id, l.nom]))
+const estChou = s => /^chou/i.test(nomLegume.get(s.legume_id) || '')
+const SERRES_DEBORDEMENT = ['S1', 'S9', 'S8', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7']
+const BLOC_SALADES = 'C' // Petit maraîchage · Salade en 2027
+const debordements = []
+const choux = []
+
 for (const [cible, { serre, annee, quoi }] of Object.entries(SERRES_2027)) {
-  const planchesSource = planchesDe([serre])
-  const planchesCible = planchesDe([cible])
+  const planchesSource = new Set(planchesDe([serre]).map(p => p.id))
   const ans = ANNEE - annee
-  const parSerie = new Map()
+  const metresParSerie = new Map()
   for (const c of cultures) {
-    if (c.annee !== annee || !c.serie_id) continue
-    const i = planchesSource.findIndex(p => p.id === c.planche_id)
-    if (i < 0) continue
-    if (!planchesCible[i]) { manques.push(`${cible} : pas de planche n°${planchesSource[i].numero}`); continue }
-    const debut = decaler(c.date_plantation, ans)
-    const fin = decaler(c.date_fin_prevue, ans) || debut
-    const entree = parSerie.get(c.serie_id) || { metres: 0, placements: [] }
-    entree.metres += Number(c.longueur_metres)
-    entree.placements.push({ planche: planchesCible[i], position: Number(c.position_debut) || 0, longueur: Number(c.longueur_metres), debut, fin, premiere: decaler(c.premiere_recolte, ans) })
-    parSerie.set(c.serie_id, entree)
+    if (c.annee !== annee || !c.serie_id || c.type !== 'prevu' || !planchesSource.has(c.planche_id)) continue
+    metresParSerie.set(c.serie_id, (metresParSerie.get(c.serie_id) || 0) + Number(c.longueur_metres))
   }
-  for (const [id, { metres, placements }] of parSerie) {
-    nouvellesSeries.push({ ligne: serie2027(serieParId.get(id), metres, ans), placements })
+  const aPlacer = [...metresParSerie].map(([id, metres]) => ({ source: serieParId.get(id), metres, ans }))
+    .sort((a, b) => (a.source.date_plantation || '').localeCompare(b.source.date_plantation || '') || b.metres - a.metres)
+
+  let place = 0
+  for (const item of aPlacer) {
+    if (estChou(item.source)) { choux.push(item); continue }
+    const ligne = serie2027(item.source, item.metres, ans)
+    const debut = ligne.date_plantation
+    const fin = ligne.derniere_recolte || debut
+    const { placements, reste } = poser(planchesDe([cible]), item.metres, debut, fin, ligne.premiere_recolte)
+    place += item.metres - reste
+    if (reste > 0) debordements.push({ ...item, metres: reste, depuis: cible })
+    if (placements.length) {
+      ligne.longueur_metres = item.metres - reste
+      nouvellesSeries.push({ ligne, placements })
+    }
   }
-  rapport.push(`${cible} ← ${serre} ${annee} · ${quoi} : ${parSerie.size} séries, ${[...parSerie.values()].reduce((a, e) => a + e.metres, 0)} m`)
+  rapport.push(`${cible} ← ${serre} ${annee} · ${quoi} : ${place} m posés`)
+}
+
+for (const item of debordements) {
+  const ligne = serie2027(item.source, item.metres, item.ans)
+  const debut = ligne.date_plantation
+  const fin = ligne.derniere_recolte || debut
+  const { placements, reste } = poser(planchesDe(SERRES_DEBORDEMENT.filter(s => s !== item.depuis)), item.metres, debut, fin, ligne.premiere_recolte)
+  const ou = [...new Set(placements.map(p => blocDe.get(p.planche.id)?.nom))].join(', ')
+  if (placements.length) {
+    ligne.longueur_metres = item.metres - reste
+    nouvellesSeries.push({ ligne, placements })
+    rapport.push(`  ${item.source.nom} : ${item.metres - reste} m de ${item.depuis} déplacés en ${ou}`)
+  }
+  if (reste > 0) {
+    manques.push(`${item.depuis} : ${item.source.nom} — ${reste} m sans place dans aucune serre`)
+    nouvellesSeries.push({ ligne: serie2027(item.source, reste, item.ans), placements: [] })
+  }
+}
+
+for (const item of choux) {
+  const ligne = serie2027({ ...item.source, sous_abri: false }, item.metres, item.ans)
+  const debut = ligne.date_plantation
+  const fin = ligne.derniere_recolte || debut
+  const { placements, reste } = poser(planchesDe(GROUPES[BLOC_SALADES]), item.metres, debut, fin, ligne.premiere_recolte)
+  if (placements.length) {
+    ligne.longueur_metres = item.metres - reste
+    nouvellesSeries.push({ ligne, placements })
+  }
+  rapport.push(`  ${item.source.nom} : sorti des serres, ${item.metres - reste} m en plein champ (bloc ${BLOC_SALADES})`)
+  if (reste > 0) {
+    manques.push(`${BLOC_SALADES} : ${item.source.nom} — ${reste} m sans place`)
+    nouvellesSeries.push({ ligne: serie2027({ ...item.source, sous_abri: false }, reste, item.ans), placements: [] })
+  }
 }
 
 // ---------- Séries 2026 jamais placées : reprises en 2027, sans emplacement ----------
 
-const placees = new Set(cultures.map(c => c.serie_id))
-const nonPlacees = series.filter(s => s.annee === ANNEE - 1 && !placees.has(s.id))
-for (const s of nonPlacees) nouvellesSeries.push({ ligne: serie2027(s, Number(s.longueur_metres)), placements: [] })
-rapport.push(`Séries 2026 sans emplacement, reprises en 2027 sans emplacement : ${nonPlacees.length}`)
-rapport.push(`Bloc I et serre S9 (Dav) : rien de prévu, laissés vides`)
+if (!SERRES_SEULEMENT) {
+  const placees = new Set(cultures.map(c => c.serie_id))
+  const nonPlacees = series.filter(s => s.annee === ANNEE - 1 && !placees.has(s.id))
+  for (const s of nonPlacees) nouvellesSeries.push({ ligne: serie2027(s, Number(s.longueur_metres)), placements: [] })
+  rapport.push(`Séries 2026 sans emplacement, reprises en 2027 sans emplacement : ${nonPlacees.length}`)
+  rapport.push(`Bloc I : rien de prévu, laissé vide`)
+}
 
 console.log(rapport.join('\n'))
 console.log(`\nTotal : ${nouvellesSeries.length} séries, ${nouvellesSeries.reduce((a, s) => a + s.placements.length, 0)} placements`)
@@ -248,6 +318,17 @@ console.log(manques.map(m => '  - ' + m).join('\n') || '  rien')
 if (!APPLIQUER) {
   console.log('\nSimulation uniquement. Relancer avec --apply pour créer le plan 2027.')
   process.exit(0)
+}
+
+if (SERRES_SEULEMENT) {
+  for (let i = 0; i < culturesAEffacer.length; i += 200) {
+    const { error } = await supabase.from('cultures').delete().in('id', culturesAEffacer.slice(i, i + 200).map(c => c.id))
+    if (error) throw new Error(`suppression placements : ${error.message}`)
+  }
+  for (let i = 0; i < seriesAEffacer.length; i += 200) {
+    const { error } = await supabase.from('series').delete().in('id', seriesAEffacer.slice(i, i + 200))
+    if (error) throw new Error(`suppression séries : ${error.message}`)
+  }
 }
 
 const saison = semaine => (semaine <= 9 ? 'hiver' : semaine <= 22 ? 'printemps' : semaine <= 39 ? 'ete' : 'automne')

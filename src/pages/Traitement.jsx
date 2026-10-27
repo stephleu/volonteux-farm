@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { semaineCourante as calculSemaineCourante, anneeCourante } from '../lib/dates'
 import { AlertTriangle, Check } from 'lucide-react'
+import AjoutSerie from '../components/AjoutSerie.jsx'
 
 const ANNEE = anneeCourante()
 
@@ -77,6 +78,10 @@ export default function Traitement() {
             </button>
           ))}
         </div>
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <AjoutSerie mode="traitement" series={series} typesTraitement={typesTraitement} onAjout={fetchData} />
       </div>
 
       {loading && <p style={{ fontSize: 13, color: 'var(--encre-douce)' }}>Chargement...</p>}

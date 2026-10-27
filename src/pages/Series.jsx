@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { semaineIso, anneeCourante } from '../lib/dates'
 import { Plus, X } from 'lucide-react'
+import PassagesSerie from '../components/PassagesSerie.jsx'
 
 const FOURNISSEURS = ['Pépinière interne', 'Desbos', 'Pépi', 'agrosemence', 'agrodia', 'valsoleil', 'Payson ferme', 'GIA ail dromois', 'Semis direct']
 const ANNEES = [2025, 2026, 2027, 2028]
@@ -395,6 +396,8 @@ export default function Series() {
                   <input type="text" value={serieEnModif.notes || ''} onChange={e => setSerieEnModif({ ...serieEnModif, notes: e.target.value })} style={inputStyle} />
                 </div>
               </div>
+              {/* Les passages s'enregistrent tout de suite, indépendamment du bouton Sauvegarder */}
+              <PassagesSerie serie={serieEnModif} typesTraitement={typesTraitement} />
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={() => setSerieEnModif(null)} style={{ padding: '6px 12px', fontSize: 12, border: '1px solid var(--trait)', borderRadius: 0, cursor: 'pointer', background: 'var(--fond)' }}>Annuler</button>
                 <button onClick={handleUpdate} style={{ padding: '6px 12px', fontSize: 12, border: 'none', borderRadius: 0, cursor: 'pointer', background: 'var(--accent)', color: 'var(--papier)', fontWeight: 500 }}>Sauvegarder</button>

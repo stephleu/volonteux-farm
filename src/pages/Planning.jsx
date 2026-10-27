@@ -5,14 +5,15 @@ import { AlertTriangle } from 'lucide-react'
 
 const MOIS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 const ANNEE = anneeCourante()
+const ANNEES = [2025, 2026, 2027, 2028]
 
 function getSemaineToDate(semaine, annee = ANNEE) {
   const d = new Date(annee, 0, 1 + (semaine - 1) * 7)
   return d
 }
 
-function getMoisFromSemaine(semaine) {
-  return getSemaineToDate(semaine).getMonth()
+function getMoisFromSemaine(semaine, annee) {
+  return getSemaineToDate(semaine, annee).getMonth()
 }
 
 function getSemainesPrepa(semaine) {
@@ -28,28 +29,18 @@ export default function Planning() {
   const [filtreType, setFiltreType] = useState('tous')
   const [semaineCourante] = useState(calculSemaineCourante)
   const [voirTout, setVoirTout] = useState(false)
+  const [annee, setAnnee] = useState(ANNEE)
+  // Masquer les semaines passées n'a de sens que pour l'année en cours
+  const masquerPassees = annee === ANNEE && !voirTout
 
-  useEffect(() => { fetchData() }, [])
+  useEffect(() => { fetchData() }, [annee])
 
   async function fetchData() {
-    const { data: cultures } = await supabase
-      .from('cultures')
-      .select('serie_id')
-      .not('serie_id', 'is', null)
-      .eq('annee', ANNEE)
-
-    const seriesIds = [...new Set((cultures || []).map(c => c.serie_id))]
-
-    if (seriesIds.length === 0) {
-      setSeries([])
-      setLoading(false)
-      return
-    }
-
+    // Séries de l'année déjà placées dans l'assolement (au moins une culture)
     const { data } = await supabase
       .from('series')
-      .select('*, legumes(nom, familles(couleur)), varietes(nom)')
-      .in('id', seriesIds)
+      .select('*, legumes(nom, familles(couleur)), varietes(nom), cultures!inner(id)')
+      .eq('annee', annee)
       .order('semaine_plantation')
 
     setSeries(data || [])
@@ -59,19 +50,19 @@ export default function Planning() {
   const seriesFiltrees = series.filter(s => {
     if (filtreFournisseur !== 'tous' && s.fournisseur !== filtreFournisseur) return false
     if (filtreType !== 'tous' && s.type !== filtreType) return false
+    if (masquerPassees && s.semaine_plantation && s.semaine_plantation < semaineCourante) return false
     return true
   })
 
   const seriesParMois = MOIS.map((mois, i) => ({
     mois,
     index: i,
-    series: seriesFiltrees.filter(s => s.semaine_plantation && getMoisFromSemaine(s.semaine_plantation) === i)
+    series: seriesFiltrees.filter(s => s.semaine_plantation && getMoisFromSemaine(s.semaine_plantation, annee) === i)
   })).filter(m => m.series.length > 0)
 
   const seriesParSemaine = seriesFiltrees.reduce((acc, s) => {
     const sem = s.semaine_plantation
     if (!sem) return acc
-    if (!voirTout && sem < semaineCourante) return acc
     if (!acc[sem]) acc[sem] = []
     acc[sem].push(s)
     return acc
@@ -79,8 +70,9 @@ export default function Planning() {
 
   const semaines = Object.keys(seriesParSemaine).map(Number).sort((a, b) => a - b)
 
+  // Les alertes ne concernent que l'année en cours
   const alertes = series.filter(s => {
-    if (!s.semaine_plantation) return false
+    if (annee !== ANNEE || !s.semaine_plantation) return false
     const semainesPrepa = getSemainesPrepa(s.semaine_plantation)
     const semaineDebutPrepa = s.semaine_plantation - semainesPrepa
     return semaineDebutPrepa <= semaineCourante + 2 && semaineDebutPrepa >= semaineCourante - 1
@@ -94,7 +86,13 @@ export default function Planning() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Planning plantation</h1>
-          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>Saison {ANNEE} · {series.length} séries planifiées</p>
+          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>
+            Saison{' '}
+            <select value={annee} onChange={e => setAnnee(parseInt(e.target.value))} style={{ fontSize: 13, padding: '2px 6px', border: '1px solid var(--trait)', borderRadius: 0 }}>
+              {ANNEES.map(a => <option key={a} value={a}>{a}</option>)}
+            </select>
+            {' '}· {seriesFiltrees.length} séries{masquerPassees ? ' à venir' : ''} sur {series.length} planifiées
+          </p>
         </div>
         <div style={{ display: 'flex', border: '1px solid var(--trait)', borderRadius: 0, overflow: 'hidden' }}>
           {[['semaine', 'Par semaine'], ['mois', 'Par mois'], ['fournisseur', 'Fournisseurs'], ['alertes', 'Alertes']].map(([v, label]) => (
@@ -119,10 +117,12 @@ export default function Planning() {
           <option value="plant">Plants seulement</option>
           <option value="semis">Semis seulement</option>
         </select>
-        <button onClick={() => setVoirTout(!voirTout)}
-          style={{ fontSize: 12, padding: '5px 12px', border: '1px solid var(--trait)', borderRadius: 0, cursor: 'pointer', background: voirTout ? 'var(--accent)' : 'var(--papier)', color: voirTout ? 'var(--papier)' : 'var(--encre)' }}>
-          {voirTout ? "Semaines passées masquées" : "Voir toute l'année"}
-        </button>
+        {annee === ANNEE && (
+          <button onClick={() => setVoirTout(!voirTout)}
+            style={{ fontSize: 12, padding: '5px 12px', border: '1px solid var(--trait)', borderRadius: 0, cursor: 'pointer', background: voirTout ? 'var(--accent)' : 'var(--papier)', color: voirTout ? 'var(--papier)' : 'var(--encre)' }}>
+            {voirTout ? `Masquer les semaines passées (avant sem. ${semaineCourante})` : "Voir toute l'année"}
+          </button>
+        )}
       </div>
 
       {loading && <p style={{ fontSize: 13, color: 'var(--encre-douce)' }}>Chargement...</p>}
@@ -133,8 +133,9 @@ export default function Planning() {
             const seriesSem = seriesParSemaine[sem]
             const semainesPrepa = getSemainesPrepa(sem)
             const semaineDebutPrepa = sem - semainesPrepa
-            const urgence = semaineDebutPrepa <= semaineCourante + 1
-            const date = getSemaineToDate(sem)
+            // Urgent : plantation à venir cette année et préparation du sol à commencer
+            const urgence = annee === ANNEE && sem >= semaineCourante && semaineDebutPrepa <= semaineCourante + 1
+            const date = getSemaineToDate(sem, annee)
             const dateStr = date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })
             const totalPlants = seriesSem.filter(s => s.type === 'plant').reduce((acc, s) => acc + (s.nombre_plants || 0), 0)
             return (

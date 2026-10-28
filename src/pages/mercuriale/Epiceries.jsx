@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Plus, X, Pencil, Copy, Mail, RefreshCw } from 'lucide-react'
+import { ATELIERS } from '../../lib/ateliers'
 
 const FORM_VIDE = { nom: '', adresse: '', email: '', identifiant: '', mot_de_passe: '' }
 
@@ -60,6 +61,20 @@ export default function MerculialeEpiceries() {
     setEditEpicerie(null)
     setForm(FORM_VIDE)
     fetchData()
+  }
+
+  const ateliersDe = e => e.ateliers || ATELIERS.map(a => a.id)
+
+  async function basculerAtelier(e, atelier) {
+    const actuels = ateliersDe(e)
+    const ateliers = actuels.includes(atelier) ? actuels.filter(a => a !== atelier) : [...actuels, atelier]
+    // Mise à jour immédiate à l'écran, puis enregistrement
+    setEpiceries(liste => liste.map(x => (x.id === e.id ? { ...x, ateliers } : x)))
+    const { error } = await supabase.from('mercuriale_epiceries').update({ ateliers }).eq('id', e.id)
+    if (error) {
+      alert(`Enregistrement impossible : ${error.message}`)
+      fetchData()
+    }
   }
 
   async function supprimerEpicerie(e) {
@@ -166,6 +181,15 @@ export default function MerculialeEpiceries() {
                 {e.identifiant && e.mot_de_passe
                   ? <span>Accès : <strong>{e.identifiant}</strong> / <strong>{e.mot_de_passe}</strong></span>
                   : <span style={{ color: 'var(--rouge)' }}>Pas encore d'accès : cliquez sur Modifier pour en créer un</span>}
+              </div>
+              {/* Ateliers visibles et commandables par cette épicerie (tout coché par défaut) */}
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 6, fontSize: 12 }}>
+                {ATELIERS.map(a => (
+                  <label key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
+                    <input type="checkbox" checked={ateliersDe(e).includes(a.id)} onChange={() => basculerAtelier(e, a.id)} />
+                    {a.nom}
+                  </label>
+                ))}
               </div>
             </div>
             {e.identifiant && e.mot_de_passe && (

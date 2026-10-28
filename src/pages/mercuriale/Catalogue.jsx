@@ -97,6 +97,7 @@ export default function MercurialeCatalogue() {
   const [acces, setAcces] = useState(lireAcces)
   const [produits, setProduits] = useState([])
   const [historique, setHistorique] = useState([])
+  const [ateliersAutorises, setAteliersAutorises] = useState(null) // null = tous
   const [panier, setPanier] = useState({})
   const [livraison, setLivraison] = useState('')
   const [loading, setLoading] = useState(true)
@@ -107,13 +108,17 @@ export default function MercurialeCatalogue() {
   useEffect(() => {
     if (!acces) return
     let actif = true
+    const identifiants = { p_identifiant: acces.identifiant, p_mot_de_passe: acces.motDePasse }
     Promise.all([
       supabase.from('mercuriale_produits').select('*').eq('disponible', true).order('nom'),
-      supabase.rpc('epicerie_commandes', { p_identifiant: acces.identifiant, p_mot_de_passe: acces.motDePasse }),
-    ]).then(([{ data: p }, { data: h, error }]) => {
+      supabase.rpc('epicerie_commandes', identifiants),
+      // Relu à chaque visite : ateliers autorisés à jour, et accès toujours valides
+      supabase.rpc('epicerie_connexion', identifiants),
+    ]).then(([{ data: p }, { data: h }, { data: e, error }]) => {
       if (!actif) return
       // Mot de passe changé par la ferme depuis la dernière visite : on redemande la connexion
-      if (error?.message?.includes('incorrect')) { garderAcces(null); setAcces(null); return }
+      if (!error && !e?.length) { garderAcces(null); setAcces(null); return }
+      setAteliersAutorises(e?.[0]?.ateliers || null)
       setProduits(p || [])
       setHistorique(h || [])
       setLoading(false)
@@ -147,6 +152,7 @@ export default function MercurialeCatalogue() {
 
   // Produits rangés par atelier de la ferme (ateliers vides masqués)
   const sections = ATELIERS
+    .filter(atelier => !ateliersAutorises || ateliersAutorises.includes(atelier.id))
     .map(atelier => ({ atelier, produits: produits.filter(p => (p.atelier || 'maraichage') === atelier.id) }))
     .filter(s => s.produits.length > 0)
 

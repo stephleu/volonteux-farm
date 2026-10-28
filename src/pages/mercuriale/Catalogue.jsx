@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { ShoppingCart, X, Check, Minus, Plus, LogOut } from 'lucide-react'
+import { ATELIERS } from '../../lib/ateliers'
 
 // Page publique de commande pour les épiceries. Chaque épicerie se connecte avec l'identifiant
 // et le mot de passe donnés par la ferme (page Épiceries) ; on les garde dans ce navigateur
@@ -131,6 +132,11 @@ export default function MercurialeCatalogue() {
     }
   }
 
+  // Produits rangés par atelier de la ferme (ateliers vides masqués)
+  const sections = ATELIERS
+    .map(atelier => ({ atelier, produits: produits.filter(p => (p.atelier || 'maraichage') === atelier.id) }))
+    .filter(s => s.produits.length > 0)
+
   const nbArticles = Object.values(panier).reduce((a, b) => a + b, 0)
   const totalHT = Object.entries(panier).reduce((acc, [id, qty]) => {
     const p = produits.find(p => p.id === id)
@@ -179,42 +185,64 @@ export default function MercurialeCatalogue() {
         {loading ? (
           <div style={{ padding: 60, textAlign: 'center', color: 'var(--encre-pale)' }}>Chargement...</div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', gap: 8 }}>
-            {produits.map(p => {
-              const qtyPanier = panier[p.id] || 0
-              return (
-                <div key={p.id} style={{ background: 'var(--papier)', border: `1px solid ${qtyPanier > 0 ? 'var(--accent)' : 'var(--trait-leger)'}`, borderRadius: 0, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--encre)' }}>{p.nom}</span>
-                      {p.variete && <span style={{ fontSize: 11, color: 'var(--encre-pale)' }}>{p.variete}</span>}
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginTop: 1 }}>
-                      Colis de {p.nombre_par_colis} {p.unite === 'kg' ? 'kg' : 'pièces'}
-                      {p.quantite_dispo > 0 && <span style={{ color: 'var(--accent)', marginLeft: 6 }}>· {p.quantite_dispo} dispo</span>}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--encre)' }}>{(p.prix_ht * p.nombre_par_colis).toFixed(2)} €</div>
-                    <div style={{ fontSize: 10, color: 'var(--encre-pale)' }}>HT / colis</div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                    <button onClick={() => updatePanier(p.id, qtyPanier - 1)} disabled={qtyPanier === 0}
-                      style={{ width: 26, height: 26, border: '1px solid var(--trait)', borderRadius: 0, cursor: qtyPanier > 0 ? 'pointer' : 'default', background: 'var(--fond)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--encre-douce)' }}>
-                      <Minus size={11} />
-                    </button>
-                    <input type="number" min="0" value={qtyPanier || ''} placeholder="0"
-                      onChange={e => updatePanier(p.id, e.target.value)}
-                      style={{ width: 36, textAlign: 'center', border: '1px solid var(--trait)', borderRadius: 0, padding: '3px 4px', fontSize: 12 }} />
-                    <button onClick={() => updatePanier(p.id, qtyPanier + 1)}
-                      style={{ width: 26, height: 26, border: '1px solid var(--accent)', borderRadius: 0, cursor: 'pointer', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--papier)' }}>
-                      <Plus size={11} />
-                    </button>
-                  </div>
+          <>
+            {/* Sommaire des ateliers */}
+            <nav style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
+              {sections.map(({ atelier, produits: liste }) => (
+                <a key={atelier.id} href={`#atelier-${atelier.id}`}
+                  style={{ padding: '6px 12px', border: '1.5px solid var(--trait)', background: 'var(--papier)', textDecoration: 'none', fontSize: 12, fontWeight: 700, fontStretch: '75%', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {atelier.nom} · {liste.length}
+                </a>
+              ))}
+            </nav>
+
+            {sections.map(({ atelier, produits: liste }) => (
+              <section key={atelier.id} id={`atelier-${atelier.id}`} style={{ marginBottom: 32, scrollMarginTop: 90 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+                  <h2 style={{ fontSize: 22, margin: 0 }}>{atelier.nom}</h2>
+                  <span style={{ fontFamily: 'var(--script)', fontStyle: 'italic', fontSize: 18 }}>{atelier.description}</span>
                 </div>
-              )
-            })}
-          </div>
+                <div style={{ height: 7, borderTop: '2px solid var(--trait)', borderBottom: '2px solid var(--trait)', margin: '8px 0 10px' }} />
+
+                {/* Une ligne par produit : nom · colis · prix · quantité */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {liste.map(p => {
+                    const qtyPanier = panier[p.id] || 0
+                    return (
+                      <div key={p.id} style={{ background: qtyPanier > 0 ? 'var(--jaune-pale)' : 'var(--papier)', border: `1px solid ${qtyPanier > 0 ? 'var(--trait)' : 'var(--trait-leger)'}`, borderLeft: `4px solid ${qtyPanier > 0 ? 'var(--encre)' : 'var(--trait-leger)'}`, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '6px 16px', flexWrap: 'wrap' }}>
+                        <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+                          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--encre)' }}>{p.nom}</span>
+                          {p.variete && <span style={{ fontSize: 12, color: 'var(--encre-douce)' }}> · {p.variete}</span>}
+                        </div>
+                        <div style={{ flex: '0 1 170px', fontSize: 12, color: 'var(--encre-douce)' }}>
+                          Colis de {p.nombre_par_colis} {p.unite === 'kg' ? 'kg' : 'pièces'}
+                          {p.quantite_dispo > 0 && <span style={{ color: 'var(--accent)' }}> · {p.quantite_dispo} dispo</span>}
+                        </div>
+                        <div style={{ flex: '0 0 110px', textAlign: 'right' }}>
+                          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--encre)' }}>{(p.prix_ht * p.nombre_par_colis).toFixed(2)} €</span>
+                          <span style={{ fontSize: 10, color: 'var(--encre-pale)' }}> HT/colis</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                          <button onClick={() => updatePanier(p.id, qtyPanier - 1)} disabled={qtyPanier === 0} aria-label={`Retirer un colis de ${p.nom}`}
+                            style={{ width: 28, height: 28, border: '1px solid var(--trait)', borderRadius: 0, cursor: qtyPanier > 0 ? 'pointer' : 'default', background: 'var(--fond)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--encre-douce)' }}>
+                            <Minus size={11} />
+                          </button>
+                          <input type="number" min="0" value={qtyPanier || ''} placeholder="0" aria-label={`Colis de ${p.nom}`}
+                            onChange={e => updatePanier(p.id, e.target.value)}
+                            style={{ width: 40, textAlign: 'center', border: '1px solid var(--trait)', borderRadius: 0, padding: '4px', fontSize: 13 }} />
+                          <button onClick={() => updatePanier(p.id, qtyPanier + 1)} aria-label={`Ajouter un colis de ${p.nom}`}
+                            style={{ width: 28, height: 28, border: '1px solid var(--accent)', borderRadius: 0, cursor: 'pointer', background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--papier)' }}>
+                            <Plus size={11} />
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </section>
+            ))}
+            {sections.length === 0 && <p style={{ textAlign: 'center', padding: 40, color: 'var(--encre-pale)' }}>Aucun produit disponible pour le moment.</p>}
+          </>
         )}
 
         {historique.length > 0 && (

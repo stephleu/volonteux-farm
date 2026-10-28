@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Plus, X, Check } from 'lucide-react'
+import { ATELIERS } from '../../lib/ateliers'
 
 export default function MercurialeProduits() {
   const [produits, setProduits] = useState([])
@@ -8,7 +9,7 @@ export default function MercurialeProduits() {
   const [showForm, setShowForm] = useState(false)
   const [editProduit, setEditProduit] = useState(null)
   const [form, setForm] = useState({
-    nom: '', variete: '', unite: 'piece', nombre_par_colis: 10,
+    nom: '', variete: '', atelier: 'maraichage', unite: 'piece', nombre_par_colis: 10,
     prix_ht: '', prix_remise: '', prix_ttc: '',
     disponible: true, quantite_dispo: 0,
   })
@@ -53,6 +54,7 @@ export default function MercurialeProduits() {
     const payload = {
       nom: form.nom,
       variete: form.variete || null,
+      atelier: form.atelier,
       unite: form.unite,
       nombre_par_colis: parseInt(form.nombre_par_colis),
       prix_ht: parseFloat(form.prix_ht),
@@ -72,6 +74,11 @@ export default function MercurialeProduits() {
     fetchData()
   }
 
+  async function changerAtelier(produit, atelier) {
+    await supabase.from('mercuriale_produits').update({ atelier }).eq('id', produit.id)
+    fetchData()
+  }
+
   async function toggleDispo(produit) {
     await supabase.from('mercuriale_produits').update({ disponible: !produit.disponible }).eq('id', produit.id)
     fetchData()
@@ -83,13 +90,14 @@ export default function MercurialeProduits() {
   }
 
   function resetForm() {
-    setForm({ nom: '', variete: '', unite: 'piece', nombre_par_colis: 10, prix_ht: '', prix_remise: '', prix_ttc: '', disponible: true, quantite_dispo: 0 })
+    setForm({ nom: '', variete: '', atelier: 'maraichage', unite: 'piece', nombre_par_colis: 10, prix_ht: '', prix_remise: '', prix_ttc: '', disponible: true, quantite_dispo: 0 })
   }
 
   function ouvrirEdit(produit) {
     setForm({
       nom: produit.nom,
       variete: produit.variete || '',
+      atelier: produit.atelier || 'maraichage',
       unite: produit.unite,
       nombre_par_colis: produit.nombre_par_colis,
       prix_ht: produit.prix_ht,
@@ -131,6 +139,12 @@ export default function MercurialeProduits() {
             <div>
               <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Variété</div>
               <input value={form.variete} onChange={e => setForm({ ...form, variete: e.target.value })} style={inputStyle} placeholder="Optionnel" />
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Atelier</div>
+              <select value={form.atelier} onChange={e => setForm({ ...form, atelier: e.target.value })} style={inputStyle}>
+                {ATELIERS.map(a => <option key={a.id} value={a.id}>{a.nom}</option>)}
+              </select>
             </div>
             <div>
               <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Unité</div>
@@ -186,11 +200,22 @@ export default function MercurialeProduits() {
           <div style={{ textAlign: 'center' }}>Qté</div>
           <div style={{ textAlign: 'center' }}>Actions</div>
         </div>
-        {produits.map(p => (
+        {ATELIERS.map(atelier => {
+          const produitsAtelier = produits.filter(p => (p.atelier || 'maraichage') === atelier.id)
+          if (produitsAtelier.length === 0) return null
+          return [
+            <div key={atelier.id} style={{ padding: '8px 14px', background: 'var(--jaune-pale)', borderBottom: '1px solid var(--trait)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              {atelier.nom} · {produitsAtelier.length}
+            </div>,
+            ...produitsAtelier.map(p => (
           <div key={p.id} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px 80px 80px 80px 80px 100px', padding: '10px 14px', borderBottom: '1px solid var(--trait-leger)', alignItems: 'center', opacity: p.disponible ? 1 : 0.5 }}>
             <div>
               <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--encre)' }}>{p.nom}{p.variete ? ` · ${p.variete}` : ''}</div>
-              {!p.disponible && <span style={{ fontSize: 10, color: 'var(--rouge)' }}>Indisponible</span>}
+              <select value={p.atelier || 'maraichage'} onChange={e => changerAtelier(p, e.target.value)} title="Atelier"
+                style={{ fontSize: 10, padding: '1px 4px', border: '1px solid var(--trait-leger)', background: 'transparent', marginTop: 2 }}>
+                {ATELIERS.map(a => <option key={a.id} value={a.id}>{a.nom}</option>)}
+              </select>
+              {!p.disponible && <span style={{ fontSize: 10, color: 'var(--rouge)', marginLeft: 6 }}>Indisponible</span>}
             </div>
             <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--encre-douce)' }}>{p.unite === 'kg' ? 'Kg' : 'Pièce'}</div>
             <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--encre-douce)' }}>{p.nombre_par_colis}</div>
@@ -213,7 +238,9 @@ export default function MercurialeProduits() {
               </button>
             </div>
           </div>
-        ))}
+            )),
+          ]
+        })}
         {!loading && produits.length === 0 && (
           <div style={{ padding: 40, textAlign: 'center', fontSize: 13, color: 'var(--encre-pale)' }}>
             Aucun produit — cliquez sur "Nouveau produit" pour commencer

@@ -74,7 +74,7 @@ export function htmlBonDeLivraison(commande) {
   <div class="entete">
     <div>
       <div class="ferme">Ferme des<br/>Volonteux</div>
-      <div class="script">Maraîchage · Arboriculture · Épices</div>
+      <div class="script">SCOP agricole depuis 2012</div>
     </div>
     <div class="titre">Bon de livraison<small>N° ${numero} · ${date}</small></div>
   </div>

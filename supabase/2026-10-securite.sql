@@ -24,14 +24,9 @@ drop policy if exists "catalogue lit les produits" on mercuriale_produits;
 create policy "catalogue lit les produits" on mercuriale_produits
   for select to anon using (disponible = true);
 
--- … choisir son épicerie (nom seulement, sans adresse ni email)…
-create or replace view epiceries_catalogue as select id, nom from mercuriale_epiceries;
-grant select on epiceries_catalogue to anon, authenticated;
-
--- … et envoyer une commande (sans pouvoir relire, modifier ni supprimer les commandes)
+-- … le reste (connexion d'une épicerie, commande, historique) passe par les fonctions
+-- de supabase/2026-10-mercuriale-acces.sql, qui vérifient identifiant et mot de passe.
+-- Les anonymes n'ont donc aucun droit direct sur les épiceries ni sur les commandes.
+drop view if exists epiceries_catalogue;
 drop policy if exists "catalogue cree une commande" on mercuriale_commandes;
-create policy "catalogue cree une commande" on mercuriale_commandes
-  for insert to anon with check (statut = 'en_attente');
 drop policy if exists "catalogue cree les lignes" on mercuriale_lignes;
-create policy "catalogue cree les lignes" on mercuriale_lignes
-  for insert to anon with check (true);

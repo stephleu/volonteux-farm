@@ -85,8 +85,7 @@ export function htmlBonDeLivraison(commande) {
       <div class="etiquette">Fournisseur</div>
       <div class="nom">Ferme des Volonteux</div>
       SIRET 537 594 558 00018 · APE 0113Z<br/>
-      TVA FR91537594558 · FR-BIO-15<br/>
-      maraicher26volonteux@gmail.com
+      TVA FR91537594558 · FR-BIO-15
     </div>
     <div class="bloc">
       <div class="etiquette">Livré à</div>

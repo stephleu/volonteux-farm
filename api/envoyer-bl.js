@@ -8,6 +8,7 @@ import { createClient } from '@supabase/supabase-js'
 import nodemailer from 'nodemailer'
 import { supabaseUrl, supabaseKey } from '../src/lib/supabase.js'
 import { SELECT_COMMANDE, htmlBonDeLivraison, numeroBL } from '../src/lib/bonDeLivraison.js'
+import { pdfDepuisHtml } from './_bl-pdf.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ erreur: 'méthode non autorisée' })
@@ -30,7 +31,12 @@ export default async function handler(req, res) {
   const numero = numeroBL(commande)
   const epicerie = commande.mercuriale_epiceries?.nom || 'épicerie'
   const date = new Date(commande.date_commande).toLocaleDateString('fr-FR')
-  const html = htmlBonDeLivraison(commande)
+  let pdf
+  try {
+    pdf = await pdfDepuisHtml(htmlBonDeLivraison(commande))
+  } catch (e) {
+    return res.status(500).json({ erreur: `PDF impossible à générer (${e.message})` })
+  }
 
   try {
     const port = Number(SMTP_PORT) || 465
@@ -40,8 +46,7 @@ export default async function handler(req, res) {
       to: EMAIL_COMPTABLE,
       subject: `Bon de livraison N° ${numero} · ${epicerie} · ${date}`,
       text: `Bonjour,\n\nVeuillez trouver ci-joint le bon de livraison N° ${numero} (${epicerie}, ${date}).\n\nFerme des Volonteux`,
-      html,
-      attachments: [{ filename: `BL-${numero}-${epicerie.replace(/[^\p{L}\p{N}]+/gu, '-')}.html`, content: html, contentType: 'text/html; charset=utf-8' }],
+      attachments: [{ filename: `BL-${numero}-${epicerie.replace(/[^\p{L}\p{N}]+/gu, '-')}.pdf`, content: Buffer.from(pdf), contentType: 'application/pdf' }],
     })
   } catch (e) {
     return res.status(502).json({ erreur: `envoi impossible (${e.message})` })

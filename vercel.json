@@ -4,5 +4,8 @@
   ],
   "crons": [
     { "path": "/api/garder-eveille", "schedule": "0 6 * * *" }
-  ]
+  ],
+  "functions": {
+    "api/envoyer-bl.js": { "maxDuration": 60 }
+  }
 }

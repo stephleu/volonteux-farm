@@ -276,6 +276,10 @@ export default function MerculialeCommandes() {
                 </div>
 
                 <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                  <button onClick={() => imprimerBL(commande)}
+                    style={{ padding: '6px 12px', fontSize: 12, border: '1px solid var(--trait)', borderRadius: 0, cursor: 'pointer', background: 'var(--fond)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Printer size={12} /> Imprimer le BL
+                  </button>
                   <button onClick={() => envoyerBL(commande)} disabled={envoiBL[commande.id]?.etat === 'en_cours'}
                     style={{ padding: '6px 12px', fontSize: 12, border: '1px solid var(--trait)', borderRadius: 0, cursor: 'pointer', background: 'var(--fond)', display: 'flex', alignItems: 'center', gap: 4 }}>
                     <Mail size={12} /> {commande.bl_envoye_le ? 'Renvoyer le BL au comptable' : 'Envoyer le BL au comptable'}

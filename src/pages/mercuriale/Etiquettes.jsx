@@ -64,102 +64,97 @@ export default function MerculialeEtiquettes() {
       }))
     })
 
+    // Mise en page de la ferme en noir et blanc : mono (Courier) en capitales, doubles filets, italique pour la variété
+    const colDroite = LARGEUR * 0.62
+    const largeurGauche = colDroite - MARGE - 3
+
+    // Taille de police la plus grande (≤ max) pour que le texte tienne sur la largeur
+    function ajuster(texte, max, largeur) {
+      let taille = max
+      doc.setFontSize(taille)
+      while (taille > 7 && doc.getTextWidth(texte) > largeur) doc.setFontSize(taille -= 0.5)
+      return taille
+    }
+
+    function doubleFilet(x1, x2, y) {
+      doc.setLineWidth(0.35)
+      doc.line(x1, y, x2, y)
+      doc.line(x1, y + 1, x2, y + 1)
+    }
+
+    doc.setTextColor(0, 0, 0)
+    doc.setDrawColor(0, 0, 0)
+
     etiquettes.forEach((etiq, index) => {
       if (index > 0) doc.addPage([LARGEUR, HAUTEUR], 'landscape')
 
-      // Bordure
-      doc.setDrawColor(200, 200, 200)
-      doc.setLineWidth(0.3)
-      doc.rect(1, 1, LARGEUR - 2, HAUTEUR - 2)
-
-      // Ligne verticale séparatrice
-      const colDroite = LARGEUR * 0.62
-      doc.setDrawColor(220, 220, 220)
+      // Cadre et séparation des deux colonnes
+      doc.setLineWidth(0.6)
+      doc.rect(1.5, 1.5, LARGEUR - 3, HAUTEUR - 3)
+      doc.setLineWidth(0.35)
       doc.line(colDroite, MARGE, colDroite, HAUTEUR - MARGE)
 
-      // === COLONNE GAUCHE ===
-      let y = MARGE + 4
+      // === COLONNE GAUCHE : le produit ===
+      doc.setFont('courier', 'bold')
+      doc.setFontSize(7)
+      doc.text('FERME DES VOLONTEUX', MARGE, MARGE + 3)
+      doubleFilet(MARGE, colDroite - 3, MARGE + 4.5)
 
-      doc.setFontSize(5.5)
-      doc.setTextColor(140, 140, 140)
-      doc.setFont('helvetica', 'normal')
-      doc.text('Catégorie 2  ·  Origine France', MARGE, y)
-      y += 6
-
-      doc.setFontSize(15)
-      doc.setTextColor(20, 20, 20)
-      doc.setFont('helvetica', 'bold')
-      doc.text(etiq.produit, MARGE, y)
-      y += 5
+      let y = MARGE + 13
+      doc.setFont('courier', 'bold')
+      ajuster(etiq.produit.toUpperCase(), 16, largeurGauche)
+      doc.text(etiq.produit.toUpperCase(), MARGE, y)
+      y += 5.5
 
       if (etiq.variete) {
-        doc.setFontSize(7)
-        doc.setFont('helvetica', 'normal')
-        doc.setTextColor(100, 100, 100)
+        doc.setFont('times', 'italic')
+        ajuster(etiq.variete, 10, largeurGauche)
         doc.text(etiq.variete, MARGE, y)
-        y += 5
-      } else {
-        y += 2
       }
-
-      doc.setFontSize(10)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(20, 20, 20)
-      doc.text(etiq.quantite, MARGE, y)
       y += 7
 
-      doc.setDrawColor(220, 220, 220)
-      doc.line(MARGE, y, colDroite - 2, y)
-      y += 4
+      doc.setFont('courier', 'bold')
+      doc.setFontSize(12)
+      doc.text(etiq.quantite.toUpperCase(), MARGE, y)
 
+      doubleFilet(MARGE, colDroite - 3, HAUTEUR - MARGE - 6)
+      doc.setFont('courier', 'normal')
       doc.setFontSize(5.5)
-      doc.setTextColor(140, 140, 140)
-      doc.setFont('helvetica', 'normal')
-      doc.text('Producteur', MARGE, y)
-      y += 3.5
-      doc.setFontSize(7.5)
-      doc.setTextColor(20, 20, 20)
-      doc.setFont('helvetica', 'bold')
-      doc.text('Ferme des Volonteux', MARGE, y)
+      doc.text('CATÉGORIE 2 · ORIGINE FRANCE', MARGE, HAUTEUR - MARGE - 1.5)
 
-      // === COLONNE DROITE ===
+      // === COLONNE DROITE : le label bio et le destinataire ===
       const xD = colDroite + 3
-      let yD = MARGE + 2
+      const largeurDroite = LARGEUR - colDroite - MARGE - 3
+      let yD = MARGE
 
-      // Logo
+      // Logo bio à 15 mm de haut, en gardant ses proportions
+      const HAUTEUR_LOGO = 15
       if (logoBase64) {
-        doc.addImage(logoBase64, 'PNG', xD, yD, 32, 21)
+        const { width, height } = doc.getImageProperties(logoBase64)
+        doc.addImage(logoBase64, 'PNG', xD, yD, HAUTEUR_LOGO * width / height, HAUTEUR_LOGO)
       } else {
-        doc.setFillColor(0, 0, 0)
-        doc.roundedRect(xD, yD, 32, 21, 1.5, 1.5, 'F')
-        doc.setFontSize(8)
-        doc.setTextColor(255, 255, 255)
-        doc.setFont('helvetica', 'bold')
-        doc.text('FR-BIO-15', xD + 16, yD + 9, { align: 'center' })
-        doc.setFontSize(5.5)
-        doc.setFont('helvetica', 'normal')
-        doc.text('Agriculture France', xD + 16, yD + 14, { align: 'center' })
+        doc.setLineWidth(0.6)
+        doc.rect(xD, yD, 17.5, HAUTEUR_LOGO)
+        doc.setFont('courier', 'bold')
+        doc.setFontSize(6.5)
+        doc.text('FR-BIO-15', xD + 8.75, yD + 7, { align: 'center' })
+        doc.setFontSize(4)
+        doc.text('AGRICULTURE FRANCE', xD + 8.75, yD + 10.5, { align: 'center' })
       }
-      yD += 24
+      yD += HAUTEUR_LOGO + 5
 
-      // Destinataire
+      doc.setFont('courier', 'bold')
       doc.setFontSize(5.5)
-      doc.setTextColor(140, 140, 140)
-      doc.setFont('helvetica', 'normal')
-      doc.text('Destinataire', xD, yD)
+      doc.text('DESTINATAIRE', xD, yD)
       yD += 3.5
       doc.setFontSize(8)
-      doc.setTextColor(20, 20, 20)
-      doc.setFont('helvetica', 'bold')
-      doc.text(etiq.epicerie, xD, yD)
-      yD += 4
+      const lignesNom = doc.splitTextToSize(etiq.epicerie.toUpperCase(), largeurDroite)
+      doc.text(lignesNom, xD, yD)
+      yD += lignesNom.length * 3.4 + 0.5
       if (etiq.adresse) {
+        doc.setFont('courier', 'normal')
         doc.setFontSize(6)
-        doc.setFont('helvetica', 'normal')
-        doc.setTextColor(100, 100, 100)
-        const maxW = LARGEUR - colDroite - MARGE - 3
-        const lignesAdresse = doc.splitTextToSize(etiq.adresse, maxW)
-        doc.text(lignesAdresse, xD, yD)
+        doc.text(doc.splitTextToSize(etiq.adresse, largeurDroite).slice(0, 3), xD, yD)
       }
     })
 

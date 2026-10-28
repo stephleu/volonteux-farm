@@ -19,7 +19,7 @@ export default function Layout() {
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-      <Sidebar email={session.user.email} />
+      <Sidebar utilisateur={session.user} />
       <main style={{ flex: 1, overflowY: 'auto', padding: '24px', background: 'var(--fond)' }}>
         <Outlet />
       </main>

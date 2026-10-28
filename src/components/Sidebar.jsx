@@ -21,7 +21,10 @@ const nav = [
 { to: '/mercuriale/etiquettes', icon: ShoppingBag, label: 'Étiquettes', parent: true },
 ]
 
-export default function Sidebar({ email }) {
+export default function Sidebar({ utilisateur }) {
+  // Nom enregistré sur le compte (voir supabase/2026-10-noms-utilisateurs.sql), sinon l'email
+  const meta = utilisateur?.user_metadata || {}
+  const nom = meta.nom || meta.full_name || meta.display_name || meta.name || utilisateur?.email
   return (
     <aside style={{
       width: 230, minWidth: 230, height: '100vh',
@@ -56,7 +59,7 @@ export default function Sidebar({ email }) {
       <div style={{ padding: '10px 14px', borderTop: '2.5px solid var(--trait)', background: 'var(--vert)', fontSize: 11, fontWeight: 700, fontStretch: '75%', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--encre)' }}>
         Saison {anneeCourante()}
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6, marginTop: 6, fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{email}</span>
+          <span title={utilisateur?.email} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nom}</span>
           <button onClick={() => supabase.auth.signOut()} style={{ background: 'none', border: 'none', padding: 0, fontSize: 11, textDecoration: 'underline', flexShrink: 0 }}>
             Déconnexion
           </button>

@@ -89,46 +89,93 @@ export default function MerculialeCommandes() {
     const email = echapper(commande.mercuriale_epiceries?.email)
     const date = new Date(commande.date_commande).toLocaleDateString('fr-FR')
 
+    const euros = n => `${n.toFixed(2).replace('.', ',')} €`
+    const totalHT = Number(totalCommande(commande))
+    const tva = totalHT * 0.055
+    const numero = String(commande.id).slice(0, 8).toUpperCase()
+
     const lignesHTML = (commande.mercuriale_lignes || []).map(l => {
       const p = l.mercuriale_produits
-      const total = (l.quantite_colis * prixLigne(l) * (p?.nombre_par_colis || 1)).toFixed(2)
+      const total = l.quantite_colis * prixLigne(l) * (p?.nombre_par_colis || 1)
       return `<tr>
-        <td style="padding:8px;border-bottom:1px solid #e5e7eb">${echapper(p?.nom)}${p?.variete ? ' · ' + echapper(p.variete) : ''}</td>
-        <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:center">${l.quantite_colis} colis × ${p?.nombre_par_colis} ${p?.unite === 'kg' ? 'kg' : 'pièces'}</td>
-        <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:right">${prixLigne(l).toFixed(2)} €</td>
-        <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:right">${total} €</td>
+        <td><strong>${echapper(p?.nom)}</strong>${p?.variete ? ` <em>${echapper(p.variete)}</em>` : ''}</td>
+        <td class="c">${l.quantite_colis}</td>
+        <td class="c">${p?.nombre_par_colis} ${p?.unite === 'kg' ? 'kg' : 'pièces'}</td>
+        <td class="d">${euros(prixLigne(l))}</td>
+        <td class="d">${euros(total)}</td>
       </tr>`
     }).join('')
 
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>BL ${epicerie}</title>
-    <style>body{font-family:Arial,sans-serif;padding:40px;color:#111}h1{font-size:22px;margin-bottom:4px}table{width:100%;border-collapse:collapse;margin-top:20px}th{background:#f9fafb;padding:8px;text-align:left;font-size:12px;border-bottom:2px solid #e5e7eb}.total{text-align:right;margin-top:16px;font-size:15px;font-weight:bold}</style>
+    // Mise en page de la ferme (mono condensée, filets noirs), pensée pour une impression noir et blanc
+    const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>BL ${numero} · ${epicerie}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Martian+Mono:wdth,wght@75..112.5,400..800&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
+    <style>
+      @page { size: A4; margin: 14mm; }
+      * { box-sizing: border-box; }
+      body { margin: 0; color: #000; background: #fff; font: 10.5px/1.45 'Martian Mono', 'Courier New', monospace; font-stretch: 87.5%; }
+      .entete { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; }
+      .ferme { font-size: 26px; font-weight: 800; font-stretch: 75%; text-transform: uppercase; line-height: .95; }
+      .titre { font-size: 15px; font-weight: 800; font-stretch: 75%; text-transform: uppercase; text-align: right; }
+      .titre small { display: block; font-size: 10.5px; font-weight: 400; text-transform: none; }
+      .filet { height: 6px; border-top: 2px solid #000; border-bottom: 2px solid #000; margin: 8px 0 14px; }
+      .blocs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+      .bloc { border: 1.5px solid #000; padding: 8px 10px; }
+      .etiquette { font-size: 8.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px; }
+      .nom { font-size: 13px; font-weight: 800; font-stretch: 75%; text-transform: uppercase; }
+      .livraison { border: 1.5px solid #000; padding: 6px 10px; margin-bottom: 14px; font-weight: 700; }
+      table { width: 100%; border-collapse: collapse; }
+      th { font-size: 8.5px; text-transform: uppercase; letter-spacing: .06em; text-align: left; padding: 6px; border-top: 2px solid #000; border-bottom: 2px solid #000; }
+      td { padding: 6px; border-bottom: .5px solid #000; vertical-align: top; }
+      td em, .script { font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 12.5px; }
+      .c { text-align: center; } .d { text-align: right; white-space: nowrap; }
+      .totaux { margin: 10px 0 0 auto; width: 46%; }
+      .totaux div { display: flex; justify-content: space-between; padding: 3px 6px; }
+      .totaux .grand { border-top: 2px solid #000; border-bottom: 2px solid #000; font-weight: 800; font-size: 12px; margin-top: 3px; }
+      .pied { margin-top: 28px; font-size: 8.5px; text-align: center; }
+      @media screen { body { padding: 14mm; max-width: 210mm; margin: 0 auto; } }
+    </style>
     </head><body>
-    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+    <div class="entete">
       <div>
-        <h1 style="margin:0 0 4px 0">Bon de livraison</h1>
-        <div style="font-weight:bold;font-size:14px">Ferme des Volonteux</div>
-        <div style="color:#6b7280;font-size:12px;line-height:1.8;margin-top:4px">
-          SIRET 53759455800018<br/>
-          N° TVA FR91537594558<br/>
-          Code APE 0113Z<br/>
-          maraicher26volonteux@gmail.com<br/>
-          FR-BIO-15
-        </div>
+        <div class="ferme">Ferme des<br/>Volonteux</div>
+        <div class="script">Maraîchage · Arboriculture · Épices</div>
       </div>
-      <div style="text-align:right">
-        <div style="font-size:18px;font-weight:bold">${epicerie}</div>
-        <div style="color:#6b7280;font-size:12px;line-height:1.8;margin-top:4px">
-          ${adresse ? adresse + '<br/>' : ''}
-          ${email ? email + '<br/>' : ''}
-          ${date}
-        </div>
+      <div class="titre">Bon de livraison<small>N° ${numero} · ${date}</small></div>
+    </div>
+    <div class="filet"></div>
+
+    <div class="blocs">
+      <div class="bloc">
+        <div class="etiquette">Fournisseur</div>
+        <div class="nom">Ferme des Volonteux</div>
+        SIRET 537 594 558 00018 · APE 0113Z<br/>
+        TVA FR91537594558 · FR-BIO-15<br/>
+        maraicher26volonteux@gmail.com
+      </div>
+      <div class="bloc">
+        <div class="etiquette">Livré à</div>
+        <div class="nom">${epicerie}</div>
+        ${adresse ? adresse + '<br/>' : ''}
+        ${email ? email : ''}
       </div>
     </div>
-    <table><thead><tr>
-      <th>Produit</th><th style="text-align:center">Quantité</th><th style="text-align:right">Prix HT/unité</th><th style="text-align:right">Total HT</th>
-    </tr></thead><tbody>${lignesHTML}</tbody></table>
-    <div class="total">Total HT : ${totalCommande(commande)} €</div>
-    ${commande.notes ? `<div style="margin-top:20px;padding:12px;background:#f9fafb;border-radius:6px;font-size:13px">Notes : ${echapper(commande.notes)}</div>` : ''}
+
+    ${commande.notes ? `<div class="livraison">${echapper(commande.notes)}</div>` : ''}
+
+    <table>
+      <thead><tr>
+        <th>Produit</th><th class="c">Colis</th><th class="c">Contenu / colis</th><th class="d">Prix HT / unité</th><th class="d">Total HT</th>
+      </tr></thead>
+      <tbody>${lignesHTML}</tbody>
+    </table>
+
+    <div class="totaux">
+      <div><span>Total HT</span><span>${euros(totalHT)}</span></div>
+      <div><span>TVA 5,5 %</span><span>${euros(tva)}</span></div>
+      <div class="grand"><span>Total TTC</span><span>${euros(totalHT + tva)}</span></div>
+    </div>
+
+    <div class="pied">Ferme des Volonteux · Agriculture biologique FR-BIO-15 · Merci !</div>
     </body></html>`
 
     const w = window.open('', '_blank')
@@ -136,9 +183,17 @@ export default function MerculialeCommandes() {
       alert('Le navigateur a bloqué la fenêtre du bon de livraison : autorisez les fenêtres pop-up pour ce site.')
       return
     }
+    // On attend les polices et le logo avant d'imprimer, sinon la première impression sort en police par défaut
+    let imprime = false
+    const imprimer = () => {
+      if (imprime) return
+      imprime = true
+      ;(w.document.fonts?.ready || Promise.resolve()).then(() => { w.focus(); w.print() })
+    }
+    w.onload = imprimer
     w.document.write(html)
     w.document.close()
-    w.print()
+    setTimeout(imprimer, 1500) // au cas où l'événement de chargement serait déjà passé
   }
 
   const statutCouleur = { en_attente: '#fff09e', confirmee: '#9dca9a', livree: '#d6d3cc' }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Plus, X, Check } from 'lucide-react'
+import { Plus, X, Check, Search } from 'lucide-react'
 import { ATELIERS } from '../../lib/ateliers'
 
 export default function MercurialeProduits() {
@@ -8,6 +8,7 @@ export default function MercurialeProduits() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editProduit, setEditProduit] = useState(null)
+  const [recherche, setRecherche] = useState('')
   const [form, setForm] = useState({
     nom: '', variete: '', atelier: 'maraichage', unite: 'piece', nombre_par_colis: 10,
     prix_ht: '', prix_remise: '', prix_ttc: '',
@@ -112,6 +113,11 @@ export default function MercurialeProduits() {
 
   const inputStyle = { width: '100%', fontSize: 12, padding: '5px 8px', border: '1px solid var(--trait)', borderRadius: 0 }
 
+  // Recherche sur le nom et la variété, sans tenir compte des accents ni des majuscules
+  const sansAccent = t => (t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+  const termes = sansAccent(recherche).split(/\s+/).filter(Boolean)
+  const produitsFiltres = produits.filter(p => termes.every(t => sansAccent(`${p.nom} ${p.variete}`).includes(t)))
+
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
@@ -124,6 +130,19 @@ export default function MercurialeProduits() {
           <Plus size={14} /> Nouveau produit
         </button>
       </div>
+
+      <div style={{ position: 'relative', marginBottom: 16 }}>
+        <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--encre-pale)' }} />
+        <input value={recherche} onChange={e => setRecherche(e.target.value)} placeholder="Rechercher un produit, une variété…"
+          style={{ width: '100%', fontSize: 13, padding: '8px 34px', border: '1px solid var(--trait)', borderRadius: 0, background: 'var(--papier)' }} />
+        {recherche && (
+          <button onClick={() => setRecherche('')} aria-label="Effacer la recherche"
+            style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--encre-pale)' }}>
+            <X size={14} />
+          </button>
+        )}
+      </div>
+      {recherche && <p style={{ fontSize: 12, color: 'var(--encre-douce)', margin: '-8px 0 12px' }}>{produitsFiltres.length} produit(s) trouvé(s)</p>}
 
       {showForm && (
         <div style={{ background: 'var(--papier)', border: '1px solid var(--trait)', borderRadius: 0, padding: 20, marginBottom: 16 }}>
@@ -158,16 +177,16 @@ export default function MercurialeProduits() {
               <input type="number" value={form.nombre_par_colis} onChange={e => setForm({ ...form, nombre_par_colis: e.target.value })} style={inputStyle} />
             </div>
             <div>
+              <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Prix TTC (€)</div>
+              <input type="number" step="0.01" value={form.prix_ttc} onChange={e => handlePrixTTC(e.target.value)} style={inputStyle} />
+            </div>
+            <div>
               <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Prix HT (€)</div>
               <input type="number" step="0.01" value={form.prix_ht} onChange={e => handlePrixHT(e.target.value)} style={inputStyle} />
             </div>
             <div>
-              <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Prix -20% HT (€)</div>
+              <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Prix mercu HT (€)</div>
               <input type="number" step="0.01" value={form.prix_remise} onChange={e => setForm({ ...form, prix_remise: e.target.value })} style={inputStyle} />
-            </div>
-            <div>
-              <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Prix TTC (€)</div>
-              <input type="number" step="0.01" value={form.prix_ttc} onChange={e => handlePrixTTC(e.target.value)} style={inputStyle} />
             </div>
             <div>
               <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 3 }}>Quantité dispo (colis)</div>
@@ -194,14 +213,14 @@ export default function MercurialeProduits() {
           <div>Produit</div>
           <div style={{ textAlign: 'center' }}>Unité</div>
           <div style={{ textAlign: 'center' }}>Colis</div>
-          <div style={{ textAlign: 'right' }}>Prix HT</div>
-          <div style={{ textAlign: 'right' }}>-20%</div>
           <div style={{ textAlign: 'right' }}>TTC</div>
+          <div style={{ textAlign: 'right' }}>Prix HT</div>
+          <div style={{ textAlign: 'right' }}>Prix mercu</div>
           <div style={{ textAlign: 'center' }}>Qté</div>
           <div style={{ textAlign: 'center' }}>Actions</div>
         </div>
         {ATELIERS.map(atelier => {
-          const produitsAtelier = produits.filter(p => (p.atelier || 'maraichage') === atelier.id)
+          const produitsAtelier = produitsFiltres.filter(p => (p.atelier || 'maraichage') === atelier.id)
           if (produitsAtelier.length === 0) return null
           return [
             <div key={atelier.id} style={{ padding: '8px 14px', background: 'var(--jaune-pale)', borderBottom: '1px solid var(--trait)', fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -219,9 +238,9 @@ export default function MercurialeProduits() {
             </div>
             <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--encre-douce)' }}>{p.unite === 'kg' ? 'Kg' : 'Pièce'}</div>
             <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--encre-douce)' }}>{p.nombre_par_colis}</div>
+            <div style={{ textAlign: 'right', fontSize: 12 }}>{p.prix_ttc?.toFixed(2)} €</div>
             <div style={{ textAlign: 'right', fontSize: 12 }}>{p.prix_ht?.toFixed(2)} €</div>
             <div style={{ textAlign: 'right', fontSize: 12, color: 'var(--accent)' }}>{p.prix_remise?.toFixed(2)} €</div>
-            <div style={{ textAlign: 'right', fontSize: 12 }}>{p.prix_ttc?.toFixed(2)} €</div>
             <div style={{ textAlign: 'center', fontSize: 12 }}>{p.quantite_dispo}</div>
             <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
               <button onClick={() => toggleDispo(p)}

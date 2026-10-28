@@ -150,8 +150,12 @@ export default function MercurialeProduits() {
       </div>
       {recherche && <p style={{ fontSize: 12, color: 'var(--encre-douce)', margin: '-8px 0 12px' }}>{produitsFiltres.length} produit(s) trouvé(s)</p>}
 
+      {/* Formulaire en fenêtre par-dessus la liste : pas besoin de remonter en haut de la page */}
       {showForm && (
-        <div style={{ background: 'var(--papier)', border: '1px solid var(--trait)', borderRadius: 0, padding: 20, marginBottom: 16 }}>
+        <div onClick={() => { setShowForm(false); setEditProduit(null) }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 16 }}>
+        <div onClick={e => e.stopPropagation()} role="dialog" aria-modal="true"
+          style={{ background: 'var(--papier)', border: '2.5px solid var(--trait)', borderRadius: 0, padding: 20, width: 720, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
             <span style={{ fontSize: 14, fontWeight: 500 }}>{editProduit ? 'Modifier le produit' : 'Nouveau produit'}</span>
             <button onClick={() => { setShowForm(false); setEditProduit(null) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--encre-pale)' }}><X size={16} /></button>
@@ -209,6 +213,7 @@ export default function MercurialeProduits() {
             style={{ background: form.nom && form.prix_ht ? 'var(--accent)' : 'var(--trait-leger)', color: form.nom && form.prix_ht ? 'var(--papier)' : 'var(--encre-pale)', border: 'none', borderRadius: 0, padding: '8px 16px', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
             {editProduit ? 'Mettre à jour' : 'Créer le produit'}
           </button>
+        </div>
         </div>
       )}
 

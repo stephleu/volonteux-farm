@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Plus, Minus, X, Printer, Mail } from 'lucide-react'
-import { SELECT_COMMANDE, prixLigne, totalCommande, htmlBonDeLivraison } from '../../lib/bonDeLivraison'
+import { SELECT_COMMANDE, prixLigne, totalCommande, htmlBonDeLivraison, imprimerHtml } from '../../lib/bonDeLivraison'
 
 export default function MerculialeCommandes() {
   const [commandes, setCommandes] = useState([])
@@ -129,25 +129,7 @@ export default function MerculialeCommandes() {
     setLignes(updated)
   }
 
-  function imprimerBL(commande) {
-    const html = htmlBonDeLivraison(commande)
-    const w = window.open('', '_blank')
-    if (!w) {
-      alert('Le navigateur a bloqué la fenêtre du bon de livraison : autorisez les fenêtres pop-up pour ce site.')
-      return
-    }
-    // On attend les polices et le logo avant d'imprimer, sinon la première impression sort en police par défaut
-    let imprime = false
-    const imprimer = () => {
-      if (imprime) return
-      imprime = true
-      ;(w.document.fonts?.ready || Promise.resolve()).then(() => { w.focus(); w.print() })
-    }
-    w.onload = imprimer
-    w.document.write(html)
-    w.document.close()
-    setTimeout(imprimer, 1500) // au cas où l'événement de chargement serait déjà passé
-  }
+  const imprimerBL = commande => imprimerHtml(htmlBonDeLivraison(commande))
 
   const statutCouleur = { en_attente: '#fff09e', confirmee: '#9dca9a', livree: '#d6d3cc' }
   const statutLabel = { en_attente: 'En attente', confirmee: 'Confirmée', livree: 'Livrée' }

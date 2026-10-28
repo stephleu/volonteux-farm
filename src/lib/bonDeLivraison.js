@@ -112,3 +112,23 @@ export function htmlBonDeLivraison(commande) {
   </body></html>`
   return html
 }
+
+// Ouvre le BL dans une nouvelle fenêtre et lance l'impression (navigateur uniquement)
+export function imprimerHtml(html) {
+  const w = window.open('', '_blank')
+  if (!w) {
+    alert('Le navigateur a bloqué la fenêtre du bon de livraison : autorisez les fenêtres pop-up pour ce site.')
+    return
+  }
+  // On attend les polices avant d'imprimer, sinon la première impression sort en police par défaut
+  let imprime = false
+  const imprimer = () => {
+    if (imprime) return
+    imprime = true
+    ;(w.document.fonts?.ready || Promise.resolve()).then(() => { w.focus(); w.print() })
+  }
+  w.onload = imprimer
+  w.document.write(html)
+  w.document.close()
+  setTimeout(imprimer, 1500) // au cas où l'événement de chargement serait déjà passé
+}

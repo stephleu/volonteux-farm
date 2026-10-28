@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
-import { ShoppingCart, X, Check, Minus, Plus, LogOut } from 'lucide-react'
+import { ShoppingCart, X, Check, Minus, Plus, LogOut, Printer } from 'lucide-react'
+import { htmlBonDeLivraison, imprimerHtml } from '../../lib/bonDeLivraison'
 import { ATELIERS } from '../../lib/ateliers'
 
 // Page publique de commande pour les épiceries. Chaque épicerie se connecte avec l'identifiant
@@ -17,6 +18,17 @@ function garderAcces(acces) {
 
 const STATUTS = { en_attente: 'En attente', confirmee: 'Confirmée', livree: 'Livrée' }
 const LIVRAISONS = { debut: 'Début de semaine', fin: 'Fin de semaine' }
+
+// Commande de l'historique (fonction epicerie_commandes) → forme attendue par le bon de livraison
+const versCommandeBL = (c, epicerie) => ({
+  ...c,
+  mercuriale_epiceries: { nom: epicerie.nom },
+  mercuriale_lignes: c.lignes.map(l => ({
+    quantite_colis: l.quantite_colis,
+    prix_unitaire: l.prix_unitaire,
+    mercuriale_produits: { nom: l.nom, variete: l.variete, nombre_par_colis: l.nombre_par_colis, unite: l.unite },
+  })),
+})
 
 function Entete({ epicerie, onDeconnexion, children }) {
   return (
@@ -248,9 +260,9 @@ export default function MercurialeCatalogue() {
         )}
 
         {historique.length > 0 && (
-          <div style={{ marginTop: 32 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, fontStretch: '75%', textTransform: 'uppercase', marginBottom: 10 }}>Vos dernières commandes</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <details style={{ marginTop: 32, border: '1.5px solid var(--trait)', background: 'var(--papier)', padding: '12px 14px' }}>
+            <summary style={{ cursor: 'pointer', fontSize: 15, fontWeight: 700, fontStretch: '75%', textTransform: 'uppercase' }}>Vos dernières commandes · {historique.length}</summary>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 12 }}>
               {historique.map(c => {
                 const total = c.lignes.reduce((acc, l) => acc + l.quantite_colis * Number(l.prix_unitaire || 0) * (l.nombre_par_colis || 1), 0)
                 return (
@@ -265,12 +277,16 @@ export default function MercurialeCatalogue() {
                         </div>
                       ))}
                       {c.notes && <div style={{ fontSize: 12, marginTop: 4 }}>{c.notes}</div>}
+                      <button onClick={() => imprimerHtml(htmlBonDeLivraison(versCommandeBL(c, acces.epicerie)))}
+                        style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 8, padding: '6px 12px', fontSize: 12, border: '1px solid var(--trait)', background: 'var(--fond)', cursor: 'pointer' }}>
+                        <Printer size={12} /> Imprimer le BL
+                      </button>
                     </div>
                   </details>
                 )
               })}
             </div>
-          </div>
+          </details>
         )}
       </div>
 

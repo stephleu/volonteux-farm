@@ -15,4 +15,5 @@ where atelier = 'maraichage'
 update mercuriale_produits set atelier = 'arboriculture'
 where atelier = 'maraichage'
   and nom !~* 'pomme de terre'
-  and nom ~* '(pomme|poire|abricot|p[êe]che|nectarine|cerise|prune|reine.claude|mirabelle|coing|kiwi|figue|noix|amande|noisette|raisin|framboise|fraise|cassis|groseille|jus|confiture|compote|sirop|nectar|gel[ée]e|p[âa]te de fruit)';
+  -- \m…\M : mot entier (« poire » mais pas « poireau ») ; la fraise est cultivée en maraîchage
+  and nom ~* '\m(pommes?|poires?|abricots?|p[êe]ches?|nectarines?|cerises?|prunes?|reine.claude|mirabelles?|coings?|kiwis?|figues?|noix|amandes?|noisettes?|raisins?|framboises?|cassis|groseilles?|jus|confitures?|compotes?|sirops?|nectars?|gel[ée]es?|p[âa]tes? de fruits?)\M';

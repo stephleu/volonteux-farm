@@ -51,10 +51,16 @@ export default function MercurialeProduits() {
   })
 }
 
+  // « piment FUMÉ » → « Piment fumé » : première lettre en majuscule, le reste en minuscules
+  const enPhrase = t => {
+    const s = (t || '').trim().toLocaleLowerCase('fr')
+    return s ? s.charAt(0).toLocaleUpperCase('fr') + s.slice(1) : ''
+  }
+
   async function handleSave() {
     const payload = {
-      nom: form.nom,
-      variete: form.variete || null,
+      nom: enPhrase(form.nom),
+      variete: enPhrase(form.variete) || null,
       atelier: form.atelier,
       unite: form.unite,
       nombre_par_colis: parseInt(form.nombre_par_colis),

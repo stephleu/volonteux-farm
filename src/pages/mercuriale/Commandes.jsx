@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Plus, X, Printer } from 'lucide-react'
+import { Plus, Minus, X, Printer, Mail } from 'lucide-react'
+import { SELECT_COMMANDE, prixLigne, totalCommande, htmlBonDeLivraison } from '../../lib/bonDeLivraison'
 
 export default function MerculialeCommandes() {
   const [commandes, setCommandes] = useState([])
@@ -16,7 +17,7 @@ export default function MerculialeCommandes() {
 
   async function fetchData() {
     const [{ data: c }, { data: e }, { data: p }] = await Promise.all([
-      supabase.from('mercuriale_commandes').select('*, mercuriale_epiceries(nom, adresse, email), mercuriale_lignes(*, mercuriale_produits(nom, variete, unite, nombre_par_colis, prix_ht, prix_ttc))').order('date_commande', { ascending: false }),
+      supabase.from('mercuriale_commandes').select(SELECT_COMMANDE).order('date_commande', { ascending: false }),
       supabase.from('mercuriale_epiceries').select('*').order('nom'),
       supabase.from('mercuriale_produits').select('*').eq('disponible', true).order('nom'),
     ])
@@ -58,6 +59,61 @@ export default function MerculialeCommandes() {
 
   async function changerStatut(id, statut) {
     await supabase.from('mercuriale_commandes').update({ statut }).eq('id', id)
+    // Commande livrée : le BL part automatiquement chez le comptable
+    if (statut === 'livree') await envoyerBL({ id })
+    fetchData()
+  }
+
+  // ---- Modification d'une commande (sans prévenir l'épicerie) ----
+
+  async function changerQuantite(ligne, delta) {
+    const quantite = ligne.quantite_colis + delta
+    if (quantite <= 0) return supprimerLigne(ligne)
+    const { error } = await supabase.from('mercuriale_lignes').update({ quantite_colis: quantite }).eq('id', ligne.id)
+    if (error) alert(`Modification impossible : ${error.message}`)
+    fetchData()
+  }
+
+  async function supprimerLigne(ligne) {
+    if (!window.confirm(`Retirer ${ligne.mercuriale_produits?.nom} de la commande ?`)) return
+    const { error } = await supabase.from('mercuriale_lignes').delete().eq('id', ligne.id)
+    if (error) alert(`Suppression impossible : ${error.message}`)
+    fetchData()
+  }
+
+  async function ajouterProduit(commande, produitId) {
+    const existante = (commande.mercuriale_lignes || []).find(l => l.produit_id === produitId)
+    if (existante) return changerQuantite(existante, 1)
+    const { error } = await supabase.from('mercuriale_lignes').insert({
+      commande_id: commande.id,
+      produit_id: produitId,
+      quantite_colis: 1,
+      prix_unitaire: produits.find(p => p.id === produitId)?.prix_ht || 0,
+    })
+    if (error) alert(`Ajout impossible : ${error.message}`)
+    fetchData()
+  }
+
+  // ---- Envoi du BL au comptable (fonction serveur api/envoyer-bl) ----
+
+  const [envoiBL, setEnvoiBL] = useState({}) // id commande → { etat: 'en_cours' | 'erreur', message }
+
+  async function envoyerBL(commande) {
+    setEnvoiBL(e => ({ ...e, [commande.id]: { etat: 'en_cours' } }))
+    const { data: { session } } = await supabase.auth.getSession()
+    let erreur = null
+    try {
+      const reponse = await fetch('/api/envoyer-bl', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ commandeId: commande.id }),
+      })
+      const resultat = await reponse.json().catch(() => ({}))
+      if (!reponse.ok) erreur = resultat.erreur || `erreur ${reponse.status}`
+    } catch {
+      erreur = 'serveur injoignable'
+    }
+    setEnvoiBL(e => ({ ...e, [commande.id]: erreur ? { etat: 'erreur', message: erreur } : undefined }))
     fetchData()
   }
 
@@ -73,111 +129,8 @@ export default function MerculialeCommandes() {
     setLignes(updated)
   }
 
-  // Prix au moment de la commande (prix_unitaire), pas le prix actuel du produit
-  const prixLigne = l => Number(l.prix_unitaire ?? l.mercuriale_produits?.prix_ht ?? 0)
-
-  function totalCommande(commande) {
-    return (commande.mercuriale_lignes || []).reduce((acc, l) => {
-      return acc + (l.quantite_colis * prixLigne(l) * (l.mercuriale_produits?.nombre_par_colis || 1))
-    }, 0).toFixed(2)
-  }
-
   function imprimerBL(commande) {
-    const echapper = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
-    const epicerie = echapper(commande.mercuriale_epiceries?.nom)
-    const adresse = echapper(commande.mercuriale_epiceries?.adresse)
-    const email = echapper(commande.mercuriale_epiceries?.email)
-    const date = new Date(commande.date_commande).toLocaleDateString('fr-FR')
-
-    const euros = n => `${n.toFixed(2).replace('.', ',')} €`
-    const totalHT = Number(totalCommande(commande))
-    const tva = totalHT * 0.055
-    const numero = String(commande.id).slice(0, 8).toUpperCase()
-
-    const lignesHTML = (commande.mercuriale_lignes || []).map(l => {
-      const p = l.mercuriale_produits
-      const total = l.quantite_colis * prixLigne(l) * (p?.nombre_par_colis || 1)
-      return `<tr>
-        <td><strong>${echapper(p?.nom)}</strong>${p?.variete ? ` <em>${echapper(p.variete)}</em>` : ''}</td>
-        <td class="c">${l.quantite_colis}</td>
-        <td class="c">${p?.nombre_par_colis} ${p?.unite === 'kg' ? 'kg' : 'pièces'}</td>
-        <td class="d">${euros(prixLigne(l))}</td>
-        <td class="d">${euros(total)}</td>
-      </tr>`
-    }).join('')
-
-    // Mise en page de la ferme (mono condensée, filets noirs), pensée pour une impression noir et blanc
-    const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>BL ${numero} · ${epicerie}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Martian+Mono:wdth,wght@75..112.5,400..800&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
-    <style>
-      @page { size: A4; margin: 14mm; }
-      * { box-sizing: border-box; }
-      body { margin: 0; color: #000; background: #fff; font: 10.5px/1.45 'Martian Mono', 'Courier New', monospace; font-stretch: 87.5%; }
-      .entete { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; }
-      .ferme { font-size: 26px; font-weight: 800; font-stretch: 75%; text-transform: uppercase; line-height: .95; }
-      .titre { font-size: 15px; font-weight: 800; font-stretch: 75%; text-transform: uppercase; text-align: right; }
-      .titre small { display: block; font-size: 10.5px; font-weight: 400; text-transform: none; }
-      .filet { height: 6px; border-top: 2px solid #000; border-bottom: 2px solid #000; margin: 8px 0 14px; }
-      .blocs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
-      .bloc { border: 1.5px solid #000; padding: 8px 10px; }
-      .etiquette { font-size: 8.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px; }
-      .nom { font-size: 13px; font-weight: 800; font-stretch: 75%; text-transform: uppercase; }
-      .livraison { border: 1.5px solid #000; padding: 6px 10px; margin-bottom: 14px; font-weight: 700; }
-      table { width: 100%; border-collapse: collapse; }
-      th { font-size: 8.5px; text-transform: uppercase; letter-spacing: .06em; text-align: left; padding: 6px; border-top: 2px solid #000; border-bottom: 2px solid #000; }
-      td { padding: 6px; border-bottom: .5px solid #000; vertical-align: top; }
-      td em, .script { font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 12.5px; }
-      .c { text-align: center; } .d { text-align: right; white-space: nowrap; }
-      .totaux { margin: 10px 0 0 auto; width: 46%; }
-      .totaux div { display: flex; justify-content: space-between; padding: 3px 6px; }
-      .totaux .grand { border-top: 2px solid #000; border-bottom: 2px solid #000; font-weight: 800; font-size: 12px; margin-top: 3px; }
-      .pied { margin-top: 28px; font-size: 8.5px; text-align: center; }
-      @media screen { body { padding: 14mm; max-width: 210mm; margin: 0 auto; } }
-    </style>
-    </head><body>
-    <div class="entete">
-      <div>
-        <div class="ferme">Ferme des<br/>Volonteux</div>
-        <div class="script">Maraîchage · Arboriculture · Épices</div>
-      </div>
-      <div class="titre">Bon de livraison<small>N° ${numero} · ${date}</small></div>
-    </div>
-    <div class="filet"></div>
-
-    <div class="blocs">
-      <div class="bloc">
-        <div class="etiquette">Fournisseur</div>
-        <div class="nom">Ferme des Volonteux</div>
-        SIRET 537 594 558 00018 · APE 0113Z<br/>
-        TVA FR91537594558 · FR-BIO-15<br/>
-        maraicher26volonteux@gmail.com
-      </div>
-      <div class="bloc">
-        <div class="etiquette">Livré à</div>
-        <div class="nom">${epicerie}</div>
-        ${adresse ? adresse + '<br/>' : ''}
-        ${email ? email : ''}
-      </div>
-    </div>
-
-    ${commande.notes ? `<div class="livraison">${echapper(commande.notes)}</div>` : ''}
-
-    <table>
-      <thead><tr>
-        <th>Produit</th><th class="c">Colis</th><th class="c">Contenu / colis</th><th class="d">Prix HT / unité</th><th class="d">Total HT</th>
-      </tr></thead>
-      <tbody>${lignesHTML}</tbody>
-    </table>
-
-    <div class="totaux">
-      <div><span>Total HT</span><span>${euros(totalHT)}</span></div>
-      <div><span>TVA 5,5 %</span><span>${euros(tva)}</span></div>
-      <div class="grand"><span>Total TTC</span><span>${euros(totalHT + tva)}</span></div>
-    </div>
-
-    <div class="pied">Ferme des Volonteux · Agriculture biologique FR-BIO-15 · Merci !</div>
-    </body></html>`
-
+    const html = htmlBonDeLivraison(commande)
     const w = window.open('', '_blank')
     if (!w) {
       alert('Le navigateur a bloqué la fenêtre du bon de livraison : autorisez les fenêtres pop-up pour ce site.')
@@ -199,6 +152,7 @@ export default function MerculialeCommandes() {
   const statutCouleur = { en_attente: '#fff09e', confirmee: '#9dca9a', livree: '#d6d3cc' }
   const statutLabel = { en_attente: 'En attente', confirmee: 'Confirmée', livree: 'Livrée' }
   const inputStyle = { width: '100%', fontSize: 12, padding: '5px 8px', border: '1px solid var(--trait)', borderRadius: 0 }
+  const boutonQuantite = { width: 22, height: 22, border: '1px solid var(--trait)', borderRadius: 0, cursor: 'pointer', background: 'var(--fond)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
 
   return (
     <div>
@@ -291,17 +245,41 @@ export default function MerculialeCommandes() {
 
             {commandeSelectionnee?.id === commande.id && (
               <div style={{ borderTop: '1px solid var(--trait-leger)', padding: '12px 16px' }}>
-                {(commande.mercuriale_lignes || []).map((l, i) => {
+                {/* Lignes modifiables : l'épicerie n'est pas prévenue, le BL suit les quantités corrigées */}
+                {(commande.mercuriale_lignes || []).map(l => {
                   const p = l.mercuriale_produits
                   return (
-                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderBottom: '1px solid var(--trait-leger)' }}>
+                    <div key={l.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto 150px 100px 24px', alignItems: 'center', gap: 10, fontSize: 12, padding: '4px 0', borderBottom: '1px solid var(--trait-leger)' }}>
                       <span>{p?.nom}{p?.variete ? ` · ${p.variete}` : ''}</span>
-                      <span style={{ color: 'var(--encre-douce)' }}>{l.quantite_colis} colis × {p?.nombre_par_colis} {p?.unite === 'kg' ? 'kg' : 'pièces'}</span>
-                      <span>{(l.quantite_colis * prixLigne(l) * (p?.nombre_par_colis || 1)).toFixed(2)} € HT</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <button onClick={() => changerQuantite(l, -1)} aria-label="Retirer un colis" style={boutonQuantite}><Minus size={11} /></button>
+                        <strong style={{ minWidth: 22, textAlign: 'center' }}>{l.quantite_colis}</strong>
+                        <button onClick={() => changerQuantite(l, 1)} aria-label="Ajouter un colis" style={boutonQuantite}><Plus size={11} /></button>
+                      </span>
+                      <span style={{ color: 'var(--encre-douce)' }}>colis × {p?.nombre_par_colis} {p?.unite === 'kg' ? 'kg' : 'pièces'}</span>
+                      <span style={{ textAlign: 'right' }}>{(l.quantite_colis * prixLigne(l) * (p?.nombre_par_colis || 1)).toFixed(2)} € HT</span>
+                      <button onClick={() => supprimerLigne(l)} aria-label="Supprimer la ligne" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--rouge)', padding: 0 }}><X size={13} /></button>
                     </div>
                   )
                 })}
-                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                <select value="" onChange={e => e.target.value && ajouterProduit(commande, e.target.value)}
+                  style={{ ...inputStyle, width: 'auto', marginTop: 8 }}>
+                  <option value="">+ Ajouter un produit…</option>
+                  {produits.map(p => <option key={p.id} value={p.id}>{p.nom}{p.variete ? ` · ${p.variete}` : ''}</option>)}
+                </select>
+
+                <div style={{ fontSize: 12, color: 'var(--encre-douce)', marginTop: 10 }}>
+                  {envoiBL[commande.id]?.etat === 'en_cours' ? 'Envoi du BL au comptable…'
+                    : envoiBL[commande.id]?.etat === 'erreur' ? <span style={{ color: 'var(--rouge)' }}>BL non envoyé : {envoiBL[commande.id].message}</span>
+                    : commande.bl_envoye_le ? `BL envoyé au comptable le ${new Date(commande.bl_envoye_le).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}`
+                    : 'BL pas encore envoyé au comptable (envoi automatique quand la commande est marquée livrée)'}
+                </div>
+
+                <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                  <button onClick={() => envoyerBL(commande)} disabled={envoiBL[commande.id]?.etat === 'en_cours'}
+                    style={{ padding: '6px 12px', fontSize: 12, border: '1px solid var(--trait)', borderRadius: 0, cursor: 'pointer', background: 'var(--fond)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Mail size={12} /> {commande.bl_envoye_le ? 'Renvoyer le BL au comptable' : 'Envoyer le BL au comptable'}
+                  </button>
                   {commande.statut === 'en_attente' && (
                     <button onClick={() => changerStatut(commande.id, 'confirmee')}
                       style={{ padding: '6px 12px', fontSize: 12, border: 'none', borderRadius: 0, cursor: 'pointer', background: 'var(--accent)', color: 'var(--papier)' }}>

@@ -43,7 +43,9 @@ export function htmlBonDeLivraison(commande) {
   const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>BL ${numero} · ${epicerie}</title>
   <link href="https://fonts.googleapis.com/css2?family=Martian+Mono:wdth,wght@75..112.5,400..800&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
   <style>
-    @page { size: A4; margin: 14mm; }
+    /* Marge de page à 0 : le navigateur n'imprime plus son en-tête ni son pied de page (titre, adresse, date) ;
+       la marge est reprise par le padding du body */
+    @page { size: A4; margin: 0; }
     * { box-sizing: border-box; }
     body { margin: 0; color: #000; background: #fff; font: 10.5px/1.45 'Martian Mono', 'Courier New', monospace; font-stretch: 87.5%; }
     .entete { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; }
@@ -65,7 +67,8 @@ export function htmlBonDeLivraison(commande) {
     .totaux div { display: flex; justify-content: space-between; padding: 3px 6px; }
     .totaux .grand { border-top: 2px solid #000; border-bottom: 2px solid #000; font-weight: 800; font-size: 12px; margin-top: 3px; }
     .pied { margin-top: 28px; font-size: 8.5px; text-align: center; }
-    @media screen { body { padding: 14mm; max-width: 210mm; margin: 0 auto; } }
+    body { padding: 14mm; }
+    @media screen { body { max-width: 210mm; margin: 0 auto; } }
   </style>
   </head><body>
   <div class="entete">

@@ -16,6 +16,7 @@ function garderAcces(acces) {
 }
 
 const STATUTS = { en_attente: 'En attente', confirmee: 'Confirmée', livree: 'Livrée' }
+const LIVRAISONS = { debut: 'Début de semaine', fin: 'Fin de semaine' }
 
 function Entete({ epicerie, onDeconnexion, children }) {
   return (
@@ -85,7 +86,7 @@ export default function MercurialeCatalogue() {
   const [produits, setProduits] = useState([])
   const [historique, setHistorique] = useState([])
   const [panier, setPanier] = useState({})
-  const [notes, setNotes] = useState('')
+  const [livraison, setLivraison] = useState('')
   const [loading, setLoading] = useState(true)
   const [commande, setCommande] = useState(false)
   const [envoi, setEnvoi] = useState(false)
@@ -151,7 +152,8 @@ export default function MercurialeCatalogue() {
       p_identifiant: acces.identifiant,
       p_mot_de_passe: acces.motDePasse,
       p_lignes: Object.entries(panier).map(([produit_id, quantite_colis]) => ({ produit_id, quantite_colis })),
-      p_notes: notes,
+      // Le jour de livraison est enregistré dans la note de la commande (visible dans Commandes et sur le BL)
+      p_notes: `Livraison : ${LIVRAISONS[livraison].toLowerCase()}`,
     })
     setEnvoi(false)
     if (error) {
@@ -159,7 +161,7 @@ export default function MercurialeCatalogue() {
       return
     }
     setPanier({})
-    setNotes('')
+    setLivraison('')
     setCommande(false)
     setConfirme(true)
     setTimeout(() => setConfirme(false), 5000)
@@ -262,7 +264,7 @@ export default function MercurialeCatalogue() {
                           {l.nom}{l.variete ? ` · ${l.variete}` : ''} — {l.quantite_colis} colis de {l.nombre_par_colis} {l.unite === 'kg' ? 'kg' : 'pièces'}
                         </div>
                       ))}
-                      {c.notes && <div style={{ fontSize: 12, marginTop: 4 }}>Note : {c.notes}</div>}
+                      {c.notes && <div style={{ fontSize: 12, marginTop: 4 }}>{c.notes}</div>}
                     </div>
                   </details>
                 )
@@ -294,13 +296,18 @@ export default function MercurialeCatalogue() {
                 <span>{totalHT.toFixed(2)} €</span>
               </div>
             </div>
-            <label style={{ fontSize: 12, color: 'var(--encre-douce)' }}>Un mot pour la ferme (facultatif)
-              <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Jour de livraison souhaité, précisions…"
-                style={{ width: '100%', fontSize: 13, padding: '8px 10px', border: '1px solid var(--trait)', borderRadius: 0, margin: '4px 0 14px', resize: 'vertical' }} />
-            </label>
-            <button onClick={passerCommande} disabled={envoi}
-              style={{ width: '100%', background: 'var(--accent)', color: 'var(--papier)', border: 'none', borderRadius: 0, padding: '11px', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
-              {envoi ? 'Envoi…' : 'Envoyer la commande'}
+            <div style={{ fontSize: 12, color: 'var(--encre-douce)', marginBottom: 6 }}>Livraison souhaitée</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+              {Object.entries(LIVRAISONS).map(([valeur, libelle]) => (
+                <label key={valeur} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer', padding: '8px 10px', border: `1.5px solid ${livraison === valeur ? 'var(--trait)' : 'var(--trait-leger)'}`, background: livraison === valeur ? 'var(--jaune-pale)' : 'var(--papier)' }}>
+                  <input type="checkbox" checked={livraison === valeur} onChange={() => setLivraison(livraison === valeur ? '' : valeur)} />
+                  {libelle}
+                </label>
+              ))}
+            </div>
+            <button onClick={passerCommande} disabled={envoi || !livraison}
+              style={{ width: '100%', background: livraison ? 'var(--accent)' : 'var(--trait-leger)', color: livraison ? 'var(--papier)' : 'var(--encre-pale)', border: 'none', borderRadius: 0, padding: '11px', cursor: livraison ? 'pointer' : 'default', fontSize: 14, fontWeight: 600 }}>
+              {envoi ? 'Envoi…' : livraison ? 'Envoyer la commande' : 'Choisissez un jour de livraison'}
             </button>
           </div>
         </div>

@@ -222,6 +222,7 @@ export default function MerculialeCommandes() {
                 <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--encre)' }}>{commande.mercuriale_epiceries?.nom}</div>
                 <div style={{ fontSize: 12, color: 'var(--encre-douce)' }}>
                   {new Date(commande.date_commande).toLocaleDateString('fr-FR')} · {commande.mercuriale_lignes?.length || 0} produit(s) · {totalCommande(commande)} € HT
+                  {commande.notes && <strong style={{ color: 'var(--encre)' }}> · {commande.notes}</strong>}
                 </div>
               </div>
               <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 0, background: statutCouleur[commande.statut] + '44', color: 'var(--encre)' }}>

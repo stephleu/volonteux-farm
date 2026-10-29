@@ -23,6 +23,7 @@ export default function Fertilisation() {
   const [semaineCourante] = useState(calculSemaineCourante)
   const [annee, setAnnee] = useState(ANNEE)
   const [version, setVersion] = useState(0)
+  const [voirPassees, setVoirPassees] = useState(false)
 
   useEffect(() => { fetchData() }, [annee, version])
 
@@ -105,6 +106,17 @@ export default function Fertilisation() {
 
   const totalKg = apports.reduce((acc, a) => acc + a.kg, 0)
 
+  // Planning regroupé par semaine réelle ; semaines passées masquées par défaut sur l'année en cours
+  const masquerPassees = annee === ANNEE && !voirPassees
+  const parSemaine = new Map()
+  for (const a of apports) {
+    if (masquerPassees && a.semaine < semaineCourante - 1 && !(!a.fait && a.semaine >= semaineCourante - 4)) continue
+    const sem = semaineReelle(annee, a.semaine)
+    parSemaine.set(sem, [...(parSemaine.get(sem) || []), a])
+  }
+  const semaines = [...parSemaine.keys()]
+    .sort((x, y) => apports.find(a => semaineReelle(annee, a.semaine) === x).semaine - apports.find(a => semaineReelle(annee, a.semaine) === y).semaine)
+
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
@@ -133,33 +145,49 @@ export default function Fertilisation() {
             Fumure de fond : granulés à la préparation de la planche (cocher « Fait » coche l'étape Granulés de ses planches dans Travail du sol).
             Passages : granulés en cours de culture. Doses dans l'onglet « Tableau par légume ».
           </p>
-          {apports.map(a => {
-            const couleur = a.serie.legumes?.familles?.couleur || '#9dca9a'
-            const passe = annee < ANNEE || (annee === ANNEE && a.semaine < semaineCourante)
+          {annee === ANNEE && (
+            <button onClick={() => setVoirPassees(!voirPassees)}
+              style={{ alignSelf: 'flex-start', fontSize: 12, padding: '4px 10px', border: '1px solid var(--trait)', background: voirPassees ? 'var(--accent)' : 'var(--papier)', color: voirPassees ? 'var(--papier)' : 'var(--encre)', cursor: 'pointer', marginBottom: 4 }}>
+              {voirPassees ? 'Masquer les semaines passées' : "Voir toute l'année"}
+            </button>
+          )}
+          {semaines.map(sem => {
+            const liste = parSemaine.get(sem)
+            const kg = liste.reduce((acc, a) => acc + a.kg, 0)
+            const restants = liste.filter(a => !a.fait).length
             return (
-              <div key={a.cle} style={{ background: 'var(--papier)', border: `1px solid ${a.fait ? 'var(--vert)' : passe ? 'var(--rouge-clair)' : 'var(--trait-leger)'}`, borderLeft: `4px solid ${a.type === 'fond' ? 'var(--encre)' : 'var(--trait-leger)'}`, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 12, opacity: a.fait ? 0.7 : 1 }}>
-                <div style={{ width: 10, height: 10, borderRadius: '50%', background: couleur, flexShrink: 0 }} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--encre)' }}>
-                    {a.serie.legumes?.nom}
-                    <span style={{ fontSize: 11, color: 'var(--encre-pale)', fontWeight: 400, marginLeft: 6 }}>{a.serie.nom}</span>
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginTop: 2 }}>
-                    Sem. {semaineReelle(annee, a.semaine)} · <strong>{a.type === 'fond' ? 'Fumure de fond' : 'En culture'}</strong> · {a.dose} · {a.kg.toFixed(1)} kg · {sacs(a.kg)} sac{sacs(a.kg) > 1 ? 's' : ''}
-                    {a.plan?.variante && ` · ${nomPlan(a.plan)}`}
-                  </div>
+              <div key={sem} style={{ background: 'var(--papier)', border: '1px solid var(--trait)', marginBottom: 4 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '8px 14px', background: 'var(--fond)', borderBottom: '1px solid var(--trait)', fontSize: 13 }}>
+                  <strong>Semaine {sem}</strong>
+                  <span>{Math.round(kg)} kg · {sacs(kg)} sac{sacs(kg) > 1 ? 's' : ''}{restants ? ` · ${restants} à faire` : ' · tout est fait'}</span>
                 </div>
-                <button onClick={() => basculer(a)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', fontSize: 11, border: `1px solid ${a.fait ? 'var(--vert)' : 'var(--trait-leger)'}`, borderRadius: 0, cursor: 'pointer', background: a.fait ? 'var(--vert-pale)' : 'var(--fond)', color: a.fait ? 'var(--vert-fonce)' : 'var(--encre-douce)' }}>
-                  <Check size={12} />
-                  {a.fait ? (a.suivi?.date_reelle ? `Fait le ${a.suivi.date_reelle}` : 'Fait') : 'À faire'}
-                </button>
+                {liste.map(a => {
+                  const couleur = a.serie.legumes?.familles?.couleur || '#9dca9a'
+                  return (
+                    <div key={a.cle} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '7px 14px', borderBottom: '1px solid var(--trait-leger)', borderLeft: `4px solid ${a.type === 'fond' ? 'var(--encre)' : 'transparent'}`, opacity: a.fait ? 0.6 : 1 }}>
+                      <div style={{ width: 9, height: 9, borderRadius: '50%', background: couleur, flexShrink: 0 }} />
+                      <div style={{ flex: 1, fontSize: 12 }}>
+                        <strong>{a.serie.legumes?.nom}</strong>
+                        <span style={{ color: 'var(--encre-pale)' }}> {a.serie.nom}</span>
+                        <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginTop: 1 }}>
+                          <strong>{a.type === 'fond' ? 'Fumure de fond' : 'En culture'}</strong> · {a.dose} · {a.kg.toFixed(1)} kg
+                          {a.plan?.variante && ` · ${nomPlan(a.plan)}`}
+                        </div>
+                      </div>
+                      <button onClick={() => basculer(a)}
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', fontSize: 11, border: `1px solid ${a.fait ? 'var(--vert)' : 'var(--trait-leger)'}`, borderRadius: 0, cursor: 'pointer', background: a.fait ? 'var(--vert-pale)' : 'var(--fond)', color: a.fait ? 'var(--vert-fonce)' : 'var(--encre-douce)' }}>
+                        <Check size={12} />
+                        {a.fait ? (a.suivi?.date_reelle ? `Fait le ${a.suivi.date_reelle}` : 'Fait') : 'À faire'}
+                      </button>
+                    </div>
+                  )
+                })}
               </div>
             )
           })}
-          {apports.length === 0 && !loading && (
+          {semaines.length === 0 && !loading && (
             <div style={{ textAlign: 'center', padding: 40, color: 'var(--encre-pale)', fontSize: 13 }}>
-              Aucun apport : réglez les doses dans l'onglet « Tableau par légume »
+              {apports.length ? 'Aucun apport dans les semaines à venir' : "Aucun apport : réglez les doses dans l'onglet « Tableau par légume »"}
             </div>
           )}
         </div>

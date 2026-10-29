@@ -476,8 +476,9 @@ export default function Assolement() {
                               }}
                               style={{
                                 position: 'absolute',
+                                // Barre coupée aux bords de la période affichée (début et fin)
                                 left: `${Math.max(0, leftPct)}%`,
-                                width: `${Math.min(100 - Math.max(0, leftPct), widthPct)}%`,
+                                width: `${Math.min(100, leftPct + widthPct) - Math.max(0, leftPct)}%`,
                                 top, height: 22,
                                 background: couleur + 'cc',
                                 borderRadius: 0,

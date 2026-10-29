@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react'
 import { supabase, chargerTout } from '../lib/supabase'
-import { semaineCourante as calculSemaineCourante, anneeCourante, semaineReelle } from '../lib/dates'
+import { anneeCourante, ecartSemaines, anneeEtSemaine } from '../lib/dates'
 import { SELECT_PLANS, passagesDeSerie, fumureFond, planPour, nomPlan } from '../lib/fertilisation'
 import { kgFumure, SAC_GRANULES_KG } from '../lib/travailSol'
 import { Check } from 'lucide-react'
 import TableauFerti from '../components/TableauFerti.jsx'
 
 const ANNEE = anneeCourante()
-const ANNEES = [2025, 2026, 2027, 2028]
 const aujourdhui = () => new Date().toISOString().split('T')[0]
 
-// Tous les apports de granulés de l'année, série par série, calculés depuis le tableau par légume :
-// la fumure de fond (à la préparation de la planche) et les passages en cours de culture.
+// Tous les apports de granulés à venir, série par série et toutes années confondues, calculés depuis
+// le tableau par légume : la fumure de fond (à la préparation de la planche) et les passages en culture.
+// On charge aussi l'année précédente : une plantation de décembre a ses passages en janvier.
 export default function Fertilisation() {
   const [series, setSeries] = useState([])
   const [plans, setPlans] = useState([])
@@ -20,21 +20,18 @@ export default function Fertilisation() {
   const [granules, setGranules] = useState([])
   const [loading, setLoading] = useState(true)
   const [vue, setVue] = useState('planning')
-  const [semaineCourante] = useState(calculSemaineCourante)
-  const [annee, setAnnee] = useState(ANNEE)
   const [version, setVersion] = useState(0)
-  const [voirPassees, setVoirPassees] = useState(false)
 
-  useEffect(() => { fetchData() }, [annee, version])
+  useEffect(() => { fetchData() }, [version])
 
   async function fetchData() {
     const [{ data: s }, { data: p }, { data: sv }, { data: c }, { data: g }] = await Promise.all([
-      chargerTout(() => supabase.from('series').select('*, legumes(nom, familles(couleur)), varietes(nom)').eq('annee', annee).order('semaine_plantation').order('id')),
+      chargerTout(() => supabase.from('series').select('*, legumes(nom, familles(couleur)), varietes(nom)').gte('annee', ANNEE - 1).order('semaine_plantation').order('id')),
       supabase.from('ferti_lignes').select(SELECT_PLANS),
-      chargerTout(() => supabase.from('ferti_suivi').select('*, series!inner(annee)').eq('series.annee', annee).order('id')),
+      chargerTout(() => supabase.from('ferti_suivi').select('*, series!inner(annee)').gte('series.annee', ANNEE - 1).order('id')),
       // Planches de chaque série : la fumure de fond est « faite » quand l'étape Granulés y est cochée
-      chargerTout(() => supabase.from('cultures').select('serie_id, planche_id').eq('annee', annee).eq('type', 'prevu').order('id')),
-      chargerTout(() => supabase.from('travail_sol').select('id, planche_id, fait').eq('annee', annee).eq('etape', 'granules').eq('passage', 1).order('id')),
+      chargerTout(() => supabase.from('cultures').select('serie_id, planche_id').gte('annee', ANNEE - 1).eq('type', 'prevu').order('id')),
+      chargerTout(() => supabase.from('travail_sol').select('id, planche_id, annee, fait').gte('annee', ANNEE - 1).eq('etape', 'granules').eq('passage', 1).order('id')),
     ])
     setSeries(s || [])
     setPlans(p || [])
@@ -48,7 +45,8 @@ export default function Fertilisation() {
   const sacs = kg => Math.ceil(kg / SAC_GRANULES_KG)
 
   const planchesDe = serie => [...new Set(cultures.filter(c => c.serie_id === serie.id).map(c => c.planche_id))]
-  const granulesFaits = plancheId => granules.some(g => g.planche_id === plancheId && g.fait)
+  // Granulés cochés dans le travail du sol de l'année de la série
+  const granulesDe = (plancheId, annee) => granules.find(g => g.planche_id === plancheId && g.annee === annee)
 
   // ---- Liste des apports ----
   const apports = []
@@ -63,7 +61,7 @@ export default function Fertilisation() {
         semaine: serie.semaine_plantation,
         dose: `${fond} t/ha de fond`,
         kg: kgFumure(fond, longueur),
-        fait: planches.length > 0 && planches.every(granulesFaits),
+        fait: planches.length > 0 && planches.every(id => granulesDe(id, serie.annee)?.fait),
       })
     }
     for (const p of passagesDeSerie(plans, serie)) {
@@ -77,7 +75,11 @@ export default function Fertilisation() {
       })
     }
   }
-  apports.sort((a, b) => a.semaine - b.semaine || (a.type === 'fond' ? -1 : 1))
+  for (const a of apports) {
+    a.ecart = ecartSemaines(a.serie.annee, a.semaine)       // semaines entre aujourd'hui et l'apport
+    a.reel = anneeEtSemaine(a.serie.annee, a.semaine)       // année et semaine affichées
+  }
+  apports.sort((a, b) => a.ecart - b.ecart || (a.type === 'fond' ? -1 : 1))
 
   // ---- « Fait » ----
   async function basculer(apport) {
@@ -93,10 +95,10 @@ export default function Fertilisation() {
       if (apport.planches.length === 0) return alert("Cette série n'est pas encore placée dans l'assolement : pas de planche où cocher les granulés.")
       const fait = !apport.fait
       for (const plancheId of apport.planches) {
-        const existant = granules.find(g => g.planche_id === plancheId)
+        const existant = granulesDe(plancheId, apport.serie.annee)
         const { error } = existant
           ? await supabase.from('travail_sol').update({ fait, date_fait: fait ? aujourdhui() : null }).eq('id', existant.id)
-          : fait ? await supabase.from('travail_sol').insert({ planche_id: plancheId, etape: 'granules', passage: 1, annee, fait: true, date_fait: aujourdhui() }) : {}
+          : fait ? await supabase.from('travail_sol').insert({ planche_id: plancheId, etape: 'granules', passage: 1, annee: apport.serie.annee, fait: true, date_fait: aujourdhui() }) : {}
         erreur ||= error
       }
     }
@@ -104,29 +106,26 @@ export default function Fertilisation() {
     fetchData()
   }
 
-  const totalKg = apports.reduce((acc, a) => acc + a.kg, 0)
+  // Suivi : la saison en cours (séries de l'année)
+  const apportsSaison = apports.filter(a => a.serie.annee === ANNEE)
+  const totalKg = apportsSaison.reduce((acc, a) => acc + a.kg, 0)
 
-  // Planning regroupé par semaine réelle ; semaines passées masquées par défaut sur l'année en cours
-  const masquerPassees = annee === ANNEE && !voirPassees
-  const parSemaine = new Map()
-  for (const a of apports) {
-    if (masquerPassees && a.semaine < semaineCourante - 1 && !(!a.fait && a.semaine >= semaineCourante - 4)) continue
-    const sem = semaineReelle(annee, a.semaine)
-    parSemaine.set(sem, [...(parSemaine.get(sem) || []), a])
+  // Planning : à partir de la semaine dernière (plus les apports en retard des 4 dernières semaines),
+  // regroupé par année puis par semaine
+  const aVenir = apports.filter(a => a.ecart >= -1 || (!a.fait && a.ecart >= -4))
+  const parAnnee = new Map()
+  for (const a of aVenir) {
+    const semaines = parAnnee.get(a.reel.annee) || new Map()
+    semaines.set(a.reel.semaine, [...(semaines.get(a.reel.semaine) || []), a])
+    parAnnee.set(a.reel.annee, semaines)
   }
-  const semaines = [...parSemaine.keys()]
-    .sort((x, y) => apports.find(a => semaineReelle(annee, a.semaine) === x).semaine - apports.find(a => semaineReelle(annee, a.semaine) === y).semaine)
 
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Fertilisation</h1>
-          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>{apports.length} apports planifiés · saison{' '}
-            <select value={annee} onChange={e => setAnnee(parseInt(e.target.value))} style={{ fontSize: 13, padding: '2px 6px', border: '1px solid var(--trait)', borderRadius: 0 }}>
-              {ANNEES.map(a => <option key={a} value={a}>{a}</option>)}
-            </select>
-          </p>
+          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>{aVenir.filter(a => !a.fait).length} apports à venir</p>
         </div>
         <div style={{ display: 'flex', flexShrink: 0, border: '1px solid var(--trait)', borderRadius: 0, overflow: 'hidden' }}>
           {[['planning', 'Planning'], ['tableau', 'Tableau par légume'], ['suivi', 'Suivi']].map(([v, label]) => (
@@ -145,20 +144,19 @@ export default function Fertilisation() {
             Fumure de fond : granulés à la préparation de la planche (cocher « Fait » coche l'étape Granulés de ses planches dans Travail du sol).
             Passages : granulés en cours de culture. Doses dans l'onglet « Tableau par légume ».
           </p>
-          {annee === ANNEE && (
-            <button onClick={() => setVoirPassees(!voirPassees)}
-              style={{ alignSelf: 'flex-start', fontSize: 12, padding: '4px 10px', border: '1px solid var(--trait)', background: voirPassees ? 'var(--accent)' : 'var(--papier)', color: voirPassees ? 'var(--papier)' : 'var(--encre)', cursor: 'pointer', marginBottom: 4 }}>
-              {voirPassees ? 'Masquer les semaines passées' : "Voir toute l'année"}
-            </button>
-          )}
-          {semaines.map(sem => {
-            const liste = parSemaine.get(sem)
+          {[...parAnnee].map(([anneeApports, semaines]) => [
+            // Séparateur à chaque nouvelle année
+            <div key={`annee-${anneeApports}`} style={{ marginTop: 10 }}>
+              <div style={{ fontSize: 20, fontWeight: 700, fontStretch: '75%', textTransform: 'uppercase' }}>{anneeApports}</div>
+              <div style={{ height: 6, borderTop: '2px solid var(--trait)', borderBottom: '2px solid var(--trait)', margin: '4px 0 8px' }} />
+            </div>,
+            ...[...semaines].map(([sem, liste]) => {
             const kg = liste.reduce((acc, a) => acc + a.kg, 0)
             const restants = liste.filter(a => !a.fait).length
             return (
-              <div key={sem} style={{ background: 'var(--papier)', border: '1px solid var(--trait)', marginBottom: 4 }}>
+              <div key={`${anneeApports}-${sem}`} style={{ background: 'var(--papier)', border: '1px solid var(--trait)', marginBottom: 4 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '8px 14px', background: 'var(--fond)', borderBottom: '1px solid var(--trait)', fontSize: 13 }}>
-                  <strong>Semaine {sem}</strong>
+                  <strong>Semaine {sem}{liste[0].ecart < 0 ? ' · en retard' : liste[0].ecart === 0 ? ' · cette semaine' : ''}</strong>
                   <span>{Math.round(kg)} kg · {sacs(kg)} sac{sacs(kg) > 1 ? 's' : ''}{restants ? ` · ${restants} à faire` : ' · tout est fait'}</span>
                 </div>
                 {liste.map(a => {
@@ -184,8 +182,9 @@ export default function Fertilisation() {
                 })}
               </div>
             )
-          })}
-          {semaines.length === 0 && !loading && (
+            }),
+          ])}
+          {aVenir.length === 0 && !loading && (
             <div style={{ textAlign: 'center', padding: 40, color: 'var(--encre-pale)', fontSize: 13 }}>
               {apports.length ? 'Aucun apport dans les semaines à venir' : "Aucun apport : réglez les doses dans l'onglet « Tableau par légume »"}
             </div>
@@ -197,14 +196,15 @@ export default function Fertilisation() {
 
       {vue === 'suivi' && (
         <div>
+          <p style={{ fontSize: 13, margin: '0 0 10px' }}>Saison {ANNEE}</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 }}>
             <div style={{ background: 'var(--papier)', border: '1px solid var(--trait)', borderRadius: 0, padding: '12px 14px' }}>
               <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 4 }}>Apports planifiés</div>
-              <div style={{ fontSize: 24, fontWeight: 500, color: 'var(--encre)' }}>{apports.length}</div>
+              <div style={{ fontSize: 24, fontWeight: 500, color: 'var(--encre)' }}>{apportsSaison.length}</div>
             </div>
             <div style={{ background: 'var(--papier)', border: '1px solid var(--trait)', borderRadius: 0, padding: '12px 14px' }}>
               <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 4 }}>Apports effectués</div>
-              <div style={{ fontSize: 24, fontWeight: 500, color: 'var(--accent)' }}>{apports.filter(a => a.fait).length}</div>
+              <div style={{ fontSize: 24, fontWeight: 500, color: 'var(--accent)' }}>{apportsSaison.filter(a => a.fait).length}</div>
             </div>
             <div style={{ background: 'var(--papier)', border: '1px solid var(--trait)', borderRadius: 0, padding: '12px 14px' }}>
               <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 4 }}>Granulés sur la saison</div>
@@ -216,7 +216,7 @@ export default function Fertilisation() {
             <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--trait)', fontSize: 13, fontWeight: 500, color: 'var(--encre)' }}>
               Détail par série
             </div>
-            {series.map(serie => {
+            {series.filter(serie => serie.annee === ANNEE).map(serie => {
               const apportsSerie = apports.filter(a => a.serie.id === serie.id)
               if (apportsSerie.length === 0) return null
               const couleur = serie.legumes?.familles?.couleur || '#9dca9a'
@@ -229,7 +229,7 @@ export default function Fertilisation() {
                   </div>
                   {apportsSerie.map(a => (
                     <div key={a.cle} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0 4px 16px', fontSize: 12 }}>
-                      <span style={{ color: 'var(--encre-pale)', minWidth: 60 }}>Sem. {semaineReelle(annee, a.semaine)}</span>
+                      <span style={{ color: 'var(--encre-pale)', minWidth: 60 }}>Sem. {a.reel.semaine}{a.reel.annee !== ANNEE ? ` (${a.reel.annee})` : ''}</span>
                       <span style={{ color: 'var(--encre-douce)' }}>{a.type === 'fond' ? 'Fond' : 'En culture'} · {a.dose} · {a.kg.toFixed(1)} kg</span>
                       <span style={{ marginLeft: 'auto', color: a.fait ? 'var(--vert-fonce)' : 'var(--encre-pale)', fontSize: 11 }}>
                         {a.fait ? '✓ Fait' : '○ À faire'}

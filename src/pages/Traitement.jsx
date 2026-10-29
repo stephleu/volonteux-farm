@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { semaineCourante as calculSemaineCourante, anneeCourante } from '../lib/dates'
+import { anneeCourante, ecartSemaines, anneeEtSemaine } from '../lib/dates'
 import { Check } from 'lucide-react'
 import AjoutSerie from '../components/AjoutSerie.jsx'
 
 const ANNEE = anneeCourante()
-const ANNEES = [2025, 2026, 2027, 2028]
 
+// Tous les traitements à venir, toutes années confondues (et l'année précédente : une plantation
+// de décembre a ses traitements en janvier), avec un séparateur par année
 export default function Traitement() {
   const [series, setSeries] = useState([])
   const [traitements, setTraitements] = useState([])
@@ -14,15 +15,13 @@ export default function Traitement() {
   const [suivis, setSuivis] = useState([])
   const [loading, setLoading] = useState(true)
   const [vue, setVue] = useState('planning')
-  const [semaineCourante] = useState(calculSemaineCourante)
-  const [annee, setAnnee] = useState(ANNEE)
 
-  useEffect(() => { fetchData() }, [annee])
+  useEffect(() => { fetchData() }, [])
 
   async function fetchData() {
     const [{ data: s }, { data: t }, { data: tt }, { data: sv }] = await Promise.all([
-      supabase.from('series').select('*, legumes(nom, familles(couleur)), varietes(nom)').eq('annee', annee).order('semaine_plantation'),
-      supabase.from('serie_traitements').select('*, series!inner(annee, nom, semaine_plantation, longueur_metres, legumes(nom, familles(couleur))), types_traitement(nom)').eq('series.annee', annee),
+      supabase.from('series').select('*, legumes(nom, familles(couleur)), varietes(nom)').gte('annee', ANNEE - 1).order('semaine_plantation'),
+      supabase.from('serie_traitements').select('*, series!inner(annee, nom, semaine_plantation, longueur_metres, legumes(nom, familles(couleur))), types_traitement(nom)').gte('series.annee', ANNEE - 1),
       supabase.from('types_traitement').select('*').order('nom'),
       supabase.from('suivi_traitements').select('*'),
     ])
@@ -77,21 +76,23 @@ export default function Traitement() {
     fetchData()
   }
 
-  const traitementsAvecSemaine = traitements.map(t => ({
-    ...t,
-    semaineTraitement: getSemaineTraitement(t.series?.semaine_plantation, t.semaines_apres_plantation),
-  })).sort((a, b) => a.semaineTraitement - b.semaineTraitement)
+  const traitementsAvecSemaine = traitements.map(t => {
+    const semaine = getSemaineTraitement(t.series?.semaine_plantation, t.semaines_apres_plantation)
+    return { ...t, ecart: ecartSemaines(t.series?.annee, semaine), reel: anneeEtSemaine(t.series?.annee, semaine), semaineTraitement: anneeEtSemaine(t.series?.annee, semaine).semaine }
+  }).sort((a, b) => a.ecart - b.ecart)
+
+  // Planning : à partir de la semaine dernière, plus les traitements en retard des 4 dernières semaines
+  const aVenir = traitementsAvecSemaine.filter(t => t.ecart >= -1 || (!getSuivi(t.id)?.fait && t.ecart >= -4))
+  const annees = [...new Set(aVenir.map(t => t.reel.annee))]
+  // Suivi : la saison en cours
+  const traitementsSaison = traitements.filter(t => t.series?.annee === ANNEE)
 
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Traitements phyto</h1>
-          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>{traitements.length} traitements planifiés · saison{' '}
-            <select value={annee} onChange={e => setAnnee(parseInt(e.target.value))} style={{ fontSize: 13, padding: '2px 6px', border: '1px solid var(--trait)', borderRadius: 0 }}>
-              {ANNEES.map(a => <option key={a} value={a}>{a}</option>)}
-            </select>
-          </p>
+          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>{aVenir.filter(t => !getSuivi(t.id)?.fait).length} traitements à venir</p>
         </div>
         <div style={{ display: 'flex', border: '1px solid var(--trait)', borderRadius: 0, overflow: 'hidden' }}>
           {[['planning', 'Planning'], ['suivi', 'Suivi']].map(([v, label]) => (
@@ -110,12 +111,18 @@ export default function Traitement() {
 
       {vue === 'planning' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {traitementsAvecSemaine.map((traitement, i) => {
+          {annees.map(anneeTraitements => [
+            // Séparateur à chaque nouvelle année
+            <div key={`annee-${anneeTraitements}`} style={{ marginTop: 10 }}>
+              <div style={{ fontSize: 20, fontWeight: 700, fontStretch: '75%', textTransform: 'uppercase' }}>{anneeTraitements}</div>
+              <div style={{ height: 6, borderTop: '2px solid var(--trait)', borderBottom: '2px solid var(--trait)', margin: '4px 0 8px' }} />
+            </div>,
+            ...aVenir.filter(t => t.reel.annee === anneeTraitements).map((traitement, i) => {
             const suivi = getSuivi(traitement.id)
             const couleur = traitement.series?.legumes?.familles?.couleur || '#9dca9a'
-            const passe = annee < ANNEE || (annee === ANNEE && traitement.semaineTraitement < semaineCourante)
+            const passe = traitement.ecart < 0
             return (
-              <div key={i} style={{ background: 'var(--papier)', border: `1px solid ${suivi?.fait ? 'var(--vert)' : passe ? 'var(--rouge-clair)' : 'var(--trait-leger)'}`, borderRadius: 0, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 12, opacity: suivi?.fait ? 0.7 : 1 }}>
+              <div key={traitement.id || i} style={{ background: 'var(--papier)', border: `1px solid ${suivi?.fait ? 'var(--vert)' : passe ? 'var(--rouge-clair)' : 'var(--trait-leger)'}`, borderRadius: 0, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 12, opacity: suivi?.fait ? 0.7 : 1 }}>
                 <div style={{ width: 10, height: 10, borderRadius: '50%', background: couleur, flexShrink: 0 }} />
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--encre)' }}>
@@ -123,7 +130,7 @@ export default function Traitement() {
                     <span style={{ fontSize: 11, color: 'var(--encre-pale)', fontWeight: 400, marginLeft: 6 }}>{traitement.series?.nom}</span>
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginTop: 2 }}>
-                    Sem. {traitement.semaineTraitement} · {traitement.types_traitement?.nom}
+                    Sem. {traitement.semaineTraitement}{passe && !suivi?.fait ? ' · en retard' : ''} · {traitement.types_traitement?.nom}
                   </div>
                 </div>
                 {enModif?.id === traitement.id ? (
@@ -155,10 +162,11 @@ export default function Traitement() {
                 )}
               </div>
             )
-          })}
-          {traitementsAvecSemaine.length === 0 && !loading && (
+            }),
+          ])}
+          {aVenir.length === 0 && !loading && (
             <div style={{ textAlign: 'center', padding: 40, color: 'var(--encre-pale)', fontSize: 13 }}>
-              Aucun traitement planifié — ajoutez des traitements dans vos séries
+              Aucun traitement à venir — ajoutez des traitements dans vos séries
             </div>
           )}
         </div>
@@ -166,19 +174,20 @@ export default function Traitement() {
 
       {vue === 'suivi' && (
         <div>
+          <p style={{ fontSize: 13, margin: '0 0 10px' }}>Saison {ANNEE}</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 }}>
             <div style={{ background: 'var(--papier)', border: '1px solid var(--trait)', borderRadius: 0, padding: '12px 14px' }}>
               <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 4 }}>Total traitements planifiés</div>
-              <div style={{ fontSize: 24, fontWeight: 500, color: 'var(--encre)' }}>{traitements.length}</div>
+              <div style={{ fontSize: 24, fontWeight: 500, color: 'var(--encre)' }}>{traitementsSaison.length}</div>
             </div>
             <div style={{ background: 'var(--papier)', border: '1px solid var(--trait)', borderRadius: 0, padding: '12px 14px' }}>
               <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 4 }}>Traitements effectués</div>
-              <div style={{ fontSize: 24, fontWeight: 500, color: 'var(--accent)' }}>{suivis.filter(s => s.fait).length}</div>
+              <div style={{ fontSize: 24, fontWeight: 500, color: 'var(--accent)' }}>{traitementsSaison.filter(t => getSuivi(t.id)?.fait).length}</div>
             </div>
             <div style={{ background: 'var(--papier)', border: '1px solid var(--trait)', borderRadius: 0, padding: '12px 14px' }}>
               <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 4 }}>Produits utilisés</div>
               <div style={{ fontSize: 24, fontWeight: 500, color: 'var(--encre)' }}>
-                {new Set(traitements.map(t => t.type_traitement_id)).size}
+                {new Set(traitementsSaison.map(t => t.type_traitement_id)).size}
               </div>
             </div>
           </div>
@@ -187,7 +196,7 @@ export default function Traitement() {
             <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--trait)', fontSize: 13, fontWeight: 500, color: 'var(--encre)' }}>
               Détail par série
             </div>
-            {series.map(serie => {
+            {series.filter(serie => serie.annee === ANNEE).map(serie => {
               const traitementserie = traitements.filter(t => t.serie_id === serie.id)
               if (traitementserie.length === 0) return null
               const couleur = serie.legumes?.familles?.couleur || '#9dca9a'

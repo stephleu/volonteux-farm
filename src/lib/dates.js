@@ -23,6 +23,13 @@ export function ecartSemaines(annee, semaine) {
   return Math.round((lundiSemaine(annee, semaine) - lundiActuel) / (7 * 86400000))
 }
 
+// Année et semaine réelles d'une semaine qui a pu déborder (2026 sem. 55 → 2027 sem. 3)
+export function anneeEtSemaine(annee, semaine) {
+  const lundi = lundiSemaine(annee, semaine)
+  const jeudi = new Date(lundi.getTime() + 3 * 86400000) // l'année ISO est celle du jeudi
+  return { annee: jeudi.getUTCFullYear(), semaine: semaineIso(lundi.toISOString().slice(0, 10)) }
+}
+
 // Numéro de semaine réel (1 à 53) d'une semaine qui a pu déborder sur l'année suivante
 export const semaineReelle = (annee, semaine) => semaineIso(lundiSemaine(annee, semaine).toISOString().slice(0, 10))
 export const anneeCourante = () => new Date().getFullYear()

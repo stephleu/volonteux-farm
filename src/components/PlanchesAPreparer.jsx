@@ -27,7 +27,7 @@ export default function PlanchesAPreparer() {
         .select('id, annee, planche_id, legume_id, date_plantation, longueur_metres, legumes(nom), series(semaine_plantation), planches(numero, blocs(nom))')
         .eq('type', 'prevu').gte('date_plantation', du).lte('date_plantation', au).order('date_plantation').order('id')),
       chargerTout(() => supabase.from('travail_sol').select('planche_id, etape, passage, fait, annee').in('annee', annees).order('id')),
-      supabase.from('plans_ferti').select(SELECT_PLANS),
+      supabase.from('ferti_lignes').select(SELECT_PLANS),
     ]).then(([{ data: c }, { data: t }, { data: p }]) => {
       if (!actif) return
       setPlans(p || [])

@@ -20,7 +20,7 @@ export default function FumureFond({ annee }) {
         .select('id, annee, date_plantation, longueur_metres, planche_id, legume_id, series(semaine_plantation), legumes(nom), varietes(nom), planches(numero, blocs(nom))')
         .eq('annee', annee).eq('type', 'prevu').order('date_plantation').order('id')),
       chargerTout(() => supabase.from('travail_sol').select('planche_id, fait').eq('annee', annee).eq('etape', 'granules').order('id')),
-      supabase.from('plans_ferti').select(SELECT_PLANS),
+      supabase.from('ferti_lignes').select(SELECT_PLANS),
     ]).then(([{ data: c }, { data: t }, { data: p }]) => {
       if (!actif) return
       setPlans(p || [])

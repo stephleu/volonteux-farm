@@ -16,7 +16,7 @@ export default function PassagesSerie({ serie, typesTraitement }) {
   useEffect(() => {
     let actif = true
     Promise.all([
-      supabase.from('plans_ferti').select(SELECT_PLANS).eq('legume_id', serie.legume_id),
+      supabase.from('ferti_lignes').select(SELECT_PLANS).eq('legume_id', serie.legume_id),
       supabase.from('serie_traitements').select('*, types_traitement(nom)').eq('serie_id', serie.id).order('semaines_apres_plantation'),
     ]).then(([{ data: p }, { data: t }]) => {
       if (!actif) return

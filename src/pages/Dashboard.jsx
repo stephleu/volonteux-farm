@@ -34,13 +34,13 @@ export default function Dashboard() {
       // de janvier a sa préparation du sol en décembre
       supabase.from('series').select('*, legumes(nom, familles(couleur))').in('annee', ANNEES).order('semaine_plantation'),
       // Fertilisation : passages du tableau par légume, appliqués à chaque série
-      supabase.from('plans_ferti').select(SELECT_PLANS),
+      supabase.from('ferti_lignes').select(SELECT_PLANS),
       supabase.from('serie_traitements').select('*, series!inner(nom, annee, semaine_plantation, legumes(nom)), types_traitement(nom)').in('series.annee', ANNEES),
       supabase.from('mercuriale_commandes')
         .select('*, mercuriale_epiceries(nom), mercuriale_lignes(*, mercuriale_produits(nom, variete, unite, nombre_par_colis))')
         .in('statut', ['en_attente', 'confirmee'])
         .order('date_commande', { ascending: false }),
-      supabase.from('suivi_passages_ferti').select('serie_id, passage_id').eq('fait', true),
+      supabase.from('ferti_suivi').select('serie_id, passage_id').eq('fait', true),
       supabase.from('suivi_traitements').select('traitement_id').eq('fait', true),
     ])
     // Les passages déjà marqués « fait » ne sont plus des alertes

@@ -28,8 +28,8 @@ export default function Fertilisation() {
   async function fetchData() {
     const [{ data: s }, { data: p }, { data: sv }] = await Promise.all([
       chargerTout(() => supabase.from('series').select('*, legumes(nom, familles(couleur)), varietes(nom)').eq('annee', annee).order('semaine_plantation').order('id')),
-      supabase.from('plans_ferti').select(SELECT_PLANS),
-      chargerTout(() => supabase.from('suivi_passages_ferti').select('*, series!inner(annee)').eq('series.annee', annee).order('id')),
+      supabase.from('ferti_lignes').select(SELECT_PLANS),
+      chargerTout(() => supabase.from('ferti_suivi').select('*, series!inner(annee)').eq('series.annee', annee).order('id')),
     ])
     setSeries(s || [])
     setPlans(p || [])
@@ -49,8 +49,8 @@ export default function Fertilisation() {
   async function toggleFait(passage) {
     const suivi = getSuivi(passage)
     const { error } = suivi
-      ? await supabase.from('suivi_passages_ferti').update({ fait: !suivi.fait, date_reelle: !suivi.fait ? new Date().toISOString().split('T')[0] : null }).eq('id', suivi.id)
-      : await supabase.from('suivi_passages_ferti').insert({ serie_id: passage.serie.id, passage_id: passage.passage.id, fait: true, date_reelle: new Date().toISOString().split('T')[0] })
+      ? await supabase.from('ferti_suivi').update({ fait: !suivi.fait, date_reelle: !suivi.fait ? new Date().toISOString().split('T')[0] : null }).eq('id', suivi.id)
+      : await supabase.from('ferti_suivi').insert({ serie_id: passage.serie.id, passage_id: passage.passage.id, fait: true, date_reelle: new Date().toISOString().split('T')[0] })
     if (error) alert(`Enregistrement impossible : ${error.message}`)
     fetchData()
   }

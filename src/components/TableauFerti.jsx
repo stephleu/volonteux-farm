@@ -14,7 +14,7 @@ export default function TableauFerti({ onChange }) {
   useEffect(() => {
     let actif = true
     Promise.all([
-      supabase.from('plans_ferti').select(SELECT_PLANS),
+      supabase.from('ferti_lignes').select(SELECT_PLANS),
       supabase.from('legumes').select('id, nom').order('nom'),
     ]).then(([{ data: p }, { data: l }]) => {
       if (!actif) return
@@ -31,11 +31,11 @@ export default function TableauFerti({ onChange }) {
     onChange?.()
   }
 
-  const majPlan = (plan, champs) => ecrire(supabase.from('plans_ferti').update(champs).eq('id', plan.id))
-  const majPassage = (passage, champs) => ecrire(supabase.from('plans_ferti_passages').update(champs).eq('id', passage.id))
-  const ajouterPassage = plan => ecrire(supabase.from('plans_ferti_passages').insert({ plan_id: plan.id, dose_kg_ha: 0, semaines_apres_plantation: 0 }))
-  const supprimerPassage = passage => window.confirm('Supprimer ce passage ?') && ecrire(supabase.from('plans_ferti_passages').delete().eq('id', passage.id))
-  const creerLigne = legume => ecrire(supabase.from('plans_ferti').insert({ legume_id: legume.id }))
+  const majPlan = (plan, champs) => ecrire(supabase.from('ferti_lignes').update(champs).eq('id', plan.id))
+  const majPassage = (passage, champs) => ecrire(supabase.from('ferti_lignes_passages').update(champs).eq('id', passage.id))
+  const ajouterPassage = plan => ecrire(supabase.from('ferti_lignes_passages').insert({ plan_id: plan.id, dose_kg_ha: 0, semaines_apres_plantation: 0 }))
+  const supprimerPassage = passage => window.confirm('Supprimer ce passage ?') && ecrire(supabase.from('ferti_lignes_passages').delete().eq('id', passage.id))
+  const creerLigne = legume => ecrire(supabase.from('ferti_lignes').insert({ legume_id: legume.id }))
 
   const q = recherche.trim().toLowerCase()
   const lignes = plans
@@ -74,7 +74,7 @@ export default function TableauFerti({ onChange }) {
               onBlur={e => Number(e.target.value) !== Number(plan.fumure_fond_t_ha) && majPlan(plan, { fumure_fond_t_ha: Number(e.target.value) || 0 })}
               style={champ} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {[...(plan.plans_ferti_passages || [])].sort((a, b) => a.semaines_apres_plantation - b.semaines_apres_plantation).map(passage => (
+              {[...(plan.ferti_lignes_passages || [])].sort((a, b) => a.semaines_apres_plantation - b.semaines_apres_plantation).map(passage => (
                 <div key={passage.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
                   <input type="number" min="0" step="any" defaultValue={passage.dose_kg_ha} key={`dose-${passage.id}-${passage.dose_kg_ha}`}
                     onBlur={e => Number(e.target.value) !== Number(passage.dose_kg_ha) && majPassage(passage, { dose_kg_ha: Number(e.target.value) || 0 })}

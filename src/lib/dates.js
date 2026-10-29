@@ -7,6 +7,24 @@ export function semaineIso(date = new Date()) {
 }
 
 export const semaineCourante = () => semaineIso(new Date())
+
+// Lundi de la semaine ISO `semaine` de `annee`. Une semaine au-delà de 52/53 déborde
+// naturellement sur l'année suivante (ex. 2026, semaine 54 → 2e semaine de 2027).
+export function lundiSemaine(annee, semaine) {
+  const quatreJanvier = new Date(Date.UTC(annee, 0, 4, 12))
+  const lundiSemaine1 = quatreJanvier.getTime() - ((quatreJanvier.getUTCDay() + 6) % 7) * 86400000
+  return new Date(lundiSemaine1 + (semaine - 1) * 7 * 86400000)
+}
+
+// Nombre de semaines entre aujourd'hui et la semaine `semaine` de `annee` (négatif = passé)
+export function ecartSemaines(annee, semaine) {
+  const a = new Date()
+  const lundiActuel = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate(), 12) - ((a.getDay() + 6) % 7) * 86400000
+  return Math.round((lundiSemaine(annee, semaine) - lundiActuel) / (7 * 86400000))
+}
+
+// Numéro de semaine réel (1 à 53) d'une semaine qui a pu déborder sur l'année suivante
+export const semaineReelle = (annee, semaine) => semaineIso(lundiSemaine(annee, semaine).toISOString().slice(0, 10))
 export const anneeCourante = () => new Date().getFullYear()
 
 // Mêmes bornes partout dans le site

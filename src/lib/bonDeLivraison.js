@@ -4,6 +4,9 @@
 // Ce qu'il faut charger d'une commande pour faire son BL
 export const SELECT_COMMANDE = '*, mercuriale_epiceries(nom, adresse, email), mercuriale_lignes(*, mercuriale_produits(nom, variete, unite, nombre_par_colis, prix_ht, prix_ttc))'
 
+// Tarif des épiceries : le « Prix mercu » (prix_remise), à défaut le prix HT
+export const prixMercu = p => Number(p?.prix_remise ?? p?.prix_ht ?? 0)
+
 // Prix au moment de la commande (prix_unitaire), pas le prix actuel du produit
 export const prixLigne = l => Number(l.prix_unitaire ?? l.mercuriale_produits?.prix_ht ?? 0)
 

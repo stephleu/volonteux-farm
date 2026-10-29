@@ -129,7 +129,10 @@ export default function Series() {
   }
 
   async function supprimerSerie(id) {
-    await supabase.from('series').delete().eq('id', id)
+    const serie = series.find(s => s.id === id)
+    if (!window.confirm(`Supprimer définitivement la série « ${serie?.nom || ''} » ?`)) return
+    const { error } = await supabase.from('series').delete().eq('id', id)
+    if (error) alert(`Suppression impossible (elle est sans doute placée dans l'assolement ou a des passages prévus) : ${error.message}`)
     fetchData()
   }
 

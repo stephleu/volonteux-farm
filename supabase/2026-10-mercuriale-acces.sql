@@ -3,7 +3,9 @@
 -- les renvoyer (choix assumé : pas besoin de confidentialité forte).
 -- La page publique ne lit jamais la table des épiceries : elle passe par les fonctions ci-dessous,
 -- qui vérifient l'identifiant et le mot de passe à chaque appel.
--- À coller dans Supabase > SQL Editor, puis « Run ». Peut être relancé.
+-- ⚠ DÉJÀ APPLIQUÉ, NE PAS RELANCER : les fonctions ont été remplacées depuis par
+-- 2026-10-epiceries-ateliers.sql (ateliers autorisés) et 2026-10-prix-mercu.sql (prix mercu).
+-- Le relancer remettrait l'ancienne version, sans ces contrôles. Gardé pour l'historique.
 
 alter table mercuriale_epiceries add column if not exists identifiant text;
 alter table mercuriale_epiceries add column if not exists mot_de_passe text;

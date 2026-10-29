@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { semaineCourante as calculSemaineCourante, anneeCourante } from '../lib/dates'
 import { Check } from 'lucide-react'
 import AjoutSerie from '../components/AjoutSerie.jsx'
+import FumureFond from '../components/FumureFond.jsx'
 
 const ANNEE = anneeCourante()
 const ANNEES = [2025, 2026, 2027, 2028]
@@ -100,7 +101,7 @@ export default function Fertilisation() {
           </p>
         </div>
         <div style={{ display: 'flex', flexShrink: 0, border: '1px solid var(--trait)', borderRadius: 0, overflow: 'hidden' }}>
-          {[['planning', 'Planning'], ['suivi', 'Suivi']].map(([v, label]) => (
+          {[['planning', 'Planning'], ['fond', 'Fumure de fond'], ['suivi', 'Suivi']].map(([v, label]) => (
             <button key={v} onClick={() => setVue(v)} style={{ padding: '7px 14px', fontSize: 13, border: 'none', cursor: 'pointer', background: vue === v ? 'var(--accent)' : 'var(--fond)', color: vue === v ? 'var(--papier)' : 'var(--encre-douce)' }}>
               {label}
             </button>
@@ -168,6 +169,8 @@ export default function Fertilisation() {
           )}
         </div>
       )}
+
+      {vue === 'fond' && <FumureFond annee={annee} />}
 
       {vue === 'suivi' && (
         <div>

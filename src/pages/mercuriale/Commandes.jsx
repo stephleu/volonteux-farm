@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Plus, Minus, X, Printer, Mail } from 'lucide-react'
-import { SELECT_COMMANDE, prixLigne, totalCommande, htmlBonDeLivraison, imprimerHtml } from '../../lib/bonDeLivraison'
+import { SELECT_COMMANDE, prixLigne, prixMercu, totalCommande, htmlBonDeLivraison, imprimerHtml } from '../../lib/bonDeLivraison'
 
 export default function MerculialeCommandes() {
   const [commandes, setCommandes] = useState([])
@@ -44,7 +44,7 @@ export default function MerculialeCommandes() {
       commande_id: commande.id,
       produit_id: ligne.produit_id,
       quantite_colis: parseInt(ligne.quantite_colis),
-      prix_unitaire: produits.find(p => p.id === ligne.produit_id)?.prix_ht || 0,
+      prix_unitaire: prixMercu(produits.find(p => p.id === ligne.produit_id)),
     })))
     if (erreurLignes) {
       await supabase.from('mercuriale_commandes').delete().eq('id', commande.id)
@@ -60,8 +60,9 @@ export default function MerculialeCommandes() {
   async function changerStatut(id, statut) {
     await supabase.from('mercuriale_commandes').update({ statut }).eq('id', id)
     // Commande livrée : le BL part automatiquement chez le comptable
+    // (envoyerBL recharge déjà la liste)
     if (statut === 'livree') await envoyerBL({ id })
-    fetchData()
+    else fetchData()
   }
 
   // ---- Modification d'une commande (sans prévenir l'épicerie) ----
@@ -88,7 +89,7 @@ export default function MerculialeCommandes() {
       commande_id: commande.id,
       produit_id: produitId,
       quantite_colis: 1,
-      prix_unitaire: produits.find(p => p.id === produitId)?.prix_ht || 0,
+      prix_unitaire: prixMercu(produits.find(p => p.id === produitId)),
     })
     if (error) alert(`Ajout impossible : ${error.message}`)
     fetchData()
@@ -118,7 +119,11 @@ export default function MerculialeCommandes() {
   }
 
   async function supprimerCommande(id) {
-    await supabase.from('mercuriale_commandes').delete().eq('id', id)
+    const commande = commandes.find(c => c.id === id)
+    if (!window.confirm(`Supprimer définitivement la commande de ${commande?.mercuriale_epiceries?.nom || 'cette épicerie'} du ${commande ? new Date(commande.date_commande).toLocaleDateString('fr-FR') : ''} ?`)) return
+    await supabase.from('mercuriale_lignes').delete().eq('commande_id', id)
+    const { error } = await supabase.from('mercuriale_commandes').delete().eq('id', id)
+    if (error) alert(`Suppression impossible : ${error.message}`)
     setCommandeSelectionnee(null)
     fetchData()
   }
@@ -227,28 +232,36 @@ export default function MerculialeCommandes() {
 
             {commandeSelectionnee?.id === commande.id && (
               <div style={{ borderTop: '1px solid var(--trait-leger)', padding: '12px 16px' }}>
-                {/* Lignes modifiables : l'épicerie n'est pas prévenue, le BL suit les quantités corrigées */}
+                {/* Lignes modifiables (l'épicerie n'est pas prévenue) tant que la commande n'est pas livrée ;
+                    une fois livrée, elle est figée : son BL a été envoyé au comptable */}
+                {commande.statut === 'livree' && (
+                  <div style={{ fontSize: 12, marginBottom: 6, color: 'var(--encre-douce)' }}>Commande livrée : figée, elle ne peut plus être modifiée.</div>
+                )}
                 {(commande.mercuriale_lignes || []).map(l => {
                   const p = l.mercuriale_produits
                   return (
                     <div key={l.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto 150px 100px 24px', alignItems: 'center', gap: 10, fontSize: 12, padding: '4px 0', borderBottom: '1px solid var(--trait-leger)' }}>
                       <span>{p?.nom}{p?.variete ? ` · ${p.variete}` : ''}</span>
                       <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <button onClick={() => changerQuantite(l, -1)} aria-label="Retirer un colis" style={boutonQuantite}><Minus size={11} /></button>
+                        {commande.statut !== 'livree' && <button onClick={() => changerQuantite(l, -1)} aria-label="Retirer un colis" style={boutonQuantite}><Minus size={11} /></button>}
                         <strong style={{ minWidth: 22, textAlign: 'center' }}>{l.quantite_colis}</strong>
-                        <button onClick={() => changerQuantite(l, 1)} aria-label="Ajouter un colis" style={boutonQuantite}><Plus size={11} /></button>
+                        {commande.statut !== 'livree' && <button onClick={() => changerQuantite(l, 1)} aria-label="Ajouter un colis" style={boutonQuantite}><Plus size={11} /></button>}
                       </span>
                       <span style={{ color: 'var(--encre-douce)' }}>colis × {p?.nombre_par_colis} {p?.unite === 'kg' ? 'kg' : 'pièces'}</span>
                       <span style={{ textAlign: 'right' }}>{(l.quantite_colis * prixLigne(l) * (p?.nombre_par_colis || 1)).toFixed(2)} € HT</span>
-                      <button onClick={() => supprimerLigne(l)} aria-label="Supprimer la ligne" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--rouge)', padding: 0 }}><X size={13} /></button>
+                      {commande.statut !== 'livree'
+                        ? <button onClick={() => supprimerLigne(l)} aria-label="Supprimer la ligne" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--rouge)', padding: 0 }}><X size={13} /></button>
+                        : <span />}
                     </div>
                   )
                 })}
-                <select value="" onChange={e => e.target.value && ajouterProduit(commande, e.target.value)}
-                  style={{ ...inputStyle, width: 'auto', marginTop: 8 }}>
-                  <option value="">+ Ajouter un produit…</option>
-                  {produits.map(p => <option key={p.id} value={p.id}>{p.nom}{p.variete ? ` · ${p.variete}` : ''}</option>)}
-                </select>
+                {commande.statut !== 'livree' && (
+                  <select value="" onChange={e => e.target.value && ajouterProduit(commande, e.target.value)}
+                    style={{ ...inputStyle, width: 'auto', marginTop: 8 }}>
+                    <option value="">+ Ajouter un produit…</option>
+                    {produits.map(p => <option key={p.id} value={p.id}>{p.nom}{p.variete ? ` · ${p.variete}` : ''}</option>)}
+                  </select>
+                )}
 
                 <div style={{ fontSize: 12, color: 'var(--encre-douce)', marginTop: 10 }}>
                   {envoiBL[commande.id]?.etat === 'en_cours' ? 'Envoi du BL au comptable…'
@@ -278,10 +291,12 @@ export default function MerculialeCommandes() {
                       Marquer livrée
                     </button>
                   )}
-                  <button onClick={() => supprimerCommande(commande.id)}
-                    style={{ padding: '6px 12px', fontSize: 12, border: '1px solid var(--rouge-clair)', borderRadius: 0, cursor: 'pointer', background: 'var(--rouge-pale)', color: 'var(--rouge)' }}>
-                    Supprimer
-                  </button>
+                  {commande.statut !== 'livree' && (
+                    <button onClick={() => supprimerCommande(commande.id)}
+                      style={{ marginLeft: 'auto', padding: '6px 12px', fontSize: 12, border: '1px solid var(--rouge-clair)', borderRadius: 0, cursor: 'pointer', background: 'var(--rouge-pale)', color: 'var(--rouge)' }}>
+                      Supprimer
+                    </button>
+                  )}
                 </div>
               </div>
             )}

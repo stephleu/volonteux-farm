@@ -1,15 +1,10 @@
 import { useState, useEffect } from 'react'
 import { supabase, chargerTout } from '../lib/supabase'
 import { anneeCourante } from '../lib/dates'
+import { ETAPES, ETAPES_LABELS } from '../lib/travailSol'
 
 const aujourdhui = () => new Date().toISOString().split('T')[0]
 
-const ETAPES = ['broyer', 'fumier', 'covercrop', 'sous_soleuse', 'cultibutte', 'granules', 'vibroplanche']
-const ETAPES_LABELS = {
-  broyer: 'Broyer', fumier: 'Fumier', covercrop: 'Covercrop',
-  sous_soleuse: 'S.soleuse', cultibutte: 'Cultibutte',
-  granules: 'Granulés', vibroplanche: 'Vibroplanche'
-}
 const PASSAGES_MAX = { covercrop: 2, cultibutte: 2, vibroplanche: 3 }
 
 export default function TravailSol() {

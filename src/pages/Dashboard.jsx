@@ -1,10 +1,17 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { semaineCourante, anneeCourante } from '../lib/dates'
-import { AlertTriangle, Bell, Tractor, Sprout, Shield } from 'lucide-react'
+import { semaineCourante, anneeCourante, ecartSemaines, semaineReelle } from '../lib/dates'
+import { Bell, Sprout, Shield } from 'lucide-react'
+import PlanchesAPreparer from '../components/PlanchesAPreparer.jsx'
 
 const SEMAINE_COURANTE = semaineCourante()
 const ANNEE = anneeCourante()
+const ANNEES = [ANNEE - 1, ANNEE, ANNEE + 1]
+
+// Écart en semaines entre aujourd'hui et « semaine de plantation + décalage » d'une série
+const ecart = (serie, decalage = 0) => ecartSemaines(serie.annee, (serie.semaine_plantation || 0) + decalage)
+// Numéro de semaine affiché, ramené dans la bonne année (sem. 54 de 2026 → sem. 2)
+const semaine = (serie, decalage = 0) => semaineReelle(serie.annee, (serie.semaine_plantation || 0) + decalage)
 
 function getSemainesPrepa(semaine) {
   if (semaine <= 9 || semaine >= 44) return 5
@@ -22,9 +29,11 @@ export default function Dashboard() {
 
   async function fetchData() {
     const [{ data: s }, { data: f }, { data: t }, { data: c }, { data: sf }, { data: st }] = await Promise.all([
-      supabase.from('series').select('*, legumes(nom, familles(couleur))').eq('annee', ANNEE).order('semaine_plantation'),
-      supabase.from('serie_fertilisations').select('*, series!inner(nom, annee, semaine_plantation, longueur_metres, legumes(nom))').eq('series.annee', ANNEE),
-      supabase.from('serie_traitements').select('*, series!inner(nom, annee, semaine_plantation, legumes(nom)), types_traitement(nom)').eq('series.annee', ANNEE),
+      // Années voisines aussi : une plantation de décembre a ses passages en janvier, une plantation
+      // de janvier a sa préparation du sol en décembre
+      supabase.from('series').select('*, legumes(nom, familles(couleur))').in('annee', ANNEES).order('semaine_plantation'),
+      supabase.from('serie_fertilisations').select('*, series!inner(nom, annee, semaine_plantation, longueur_metres, legumes(nom))').in('series.annee', ANNEES),
+      supabase.from('serie_traitements').select('*, series!inner(nom, annee, semaine_plantation, legumes(nom)), types_traitement(nom)').in('series.annee', ANNEES),
       supabase.from('mercuriale_commandes')
         .select('*, mercuriale_epiceries(nom), mercuriale_lignes(*, mercuriale_produits(nom, variete, unite, nombre_par_colis))')
         .in('statut', ['en_attente', 'confirmee'])
@@ -42,29 +51,24 @@ export default function Dashboard() {
     setLoading(false)
   }
 
-  const seriesImminentes = series.filter(s =>
-    s.semaine_plantation === SEMAINE_COURANTE
-  )
+  const seriesImminentes = series.filter(s => s.semaine_plantation && ecart(s) === 0)
 
   const alertesPrepa = series.filter(s => {
     if (!s.semaine_plantation) return false
-    const debutPrepa = s.semaine_plantation - getSemainesPrepa(s.semaine_plantation)
-    return debutPrepa <= SEMAINE_COURANTE + 1 && debutPrepa >= SEMAINE_COURANTE - 1
+    const debutPrepa = ecart(s, -getSemainesPrepa(s.semaine_plantation))
+    return debutPrepa >= -1 && debutPrepa <= 1
   })
-
-  // Grouper les alertes prépa par semaine de plantation
-  const semaisnesPrepaGroupees = [...new Set(alertesPrepa.map(s => s.semaine_plantation))].sort((a, b) => a - b)
 
   // Mêmes fenêtres que les anciens onglets Alertes des pages Fertilisation et Traitements
   const alertesFerti = fertilisations.filter(f => {
-    const sem = (f.series?.semaine_plantation || 0) + f.semaines_apres_plantation
-    return sem >= SEMAINE_COURANTE - 1 && sem <= SEMAINE_COURANTE + 3
+    const e = ecart(f.series, f.semaines_apres_plantation)
+    return e >= -1 && e <= 3
   })
 
-  // Traitements : aussi ceux en retard, tant qu'ils ne sont pas marqués faits
+  // Traitements : aussi ceux en retard (jusqu'à 12 semaines), tant qu'ils ne sont pas marqués faits
   const alertesTraitement = traitements.filter(t => {
-    const sem = (t.series?.semaine_plantation || 0) + t.semaines_apres_plantation
-    return sem <= SEMAINE_COURANTE + 3
+    const e = ecart(t.series, t.semaines_apres_plantation)
+    return e >= -12 && e <= 3
   })
 
   const totalAlertes = alertesPrepa.length + alertesFerti.length + alertesTraitement.length
@@ -124,29 +128,8 @@ export default function Dashboard() {
       {/* ALERTES */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <div>
-          {alertesPrepa.length > 0 && (
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                <Tractor size={14} color="#9a6a00" />
-                <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--encre)' }}>Préparation sol urgente</span>
-              </div>
-              {semaisnesPrepaGroupees.map(sem => {
-                const seriesSem = alertesPrepa.filter(s => s.semaine_plantation === sem)
-                const blocs = [...new Set(seriesSem.map(s => s.legumes?.nom))].join(', ')
-                return (
-                  <div key={sem} style={{ display: 'flex', gap: 10, padding: '9px 12px', background: 'var(--jaune-pale)', border: '1px solid var(--jaune)', borderRadius: 0, marginBottom: 6 }}>
-                    <AlertTriangle size={14} color="#9a6a00" style={{ flexShrink: 0, marginTop: 1 }} />
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--encre)' }}>
-                        Plantation sem. {sem} · prépa avant sem. {sem - getSemainesPrepa(sem)}
-                      </div>
-                      <div style={{ fontSize: 11, color: 'var(--encre-douce)' }}>{seriesSem.length} série{seriesSem.length > 1 ? 's' : ''} concernée{seriesSem.length > 1 ? 's' : ''}</div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
+          {/* Planches dont la plantation approche et dont le travail du sol n'est pas fini */}
+          <PlanchesAPreparer />
 
           {seriesImminentes.length > 0 && (
             <div style={{ marginBottom: 14 }}>
@@ -187,7 +170,7 @@ export default function Dashboard() {
                 <div key={i} style={{ padding: '9px 12px', background: 'var(--vert-pale)', border: '1px solid var(--vert)', borderRadius: 0, marginBottom: 6 }}>
                   <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--encre)' }}>{f.series?.legumes?.nom}</div>
                   <div style={{ fontSize: 11, color: 'var(--encre-douce)' }}>
-                    Sem. {(f.series?.semaine_plantation || 0) + f.semaines_apres_plantation} · {f.dose_kg_ha} kg/ha
+                    Sem. {semaine(f.series, f.semaines_apres_plantation)} · {f.dose_kg_ha} kg/ha
                   </div>
                 </div>
               ))}
@@ -201,8 +184,8 @@ export default function Dashboard() {
                 <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--encre)' }}>Traitements à faire</span>
               </div>
               {alertesTraitement.map((t, i) => {
-                const sem = (t.series?.semaine_plantation || 0) + t.semaines_apres_plantation
-                const enRetard = sem < SEMAINE_COURANTE
+                const sem = semaine(t.series, t.semaines_apres_plantation)
+                const enRetard = ecart(t.series, t.semaines_apres_plantation) < 0
                 return (
                   <div key={i} style={{ padding: '9px 12px', background: enRetard ? 'var(--rouge-pale)' : 'var(--bleu-pale)', border: `1px solid ${enRetard ? 'var(--rouge-clair)' : 'var(--bleu-clair)'}`, borderRadius: 0, marginBottom: 6 }}>
                     <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--encre)' }}>{t.series?.legumes?.nom}{t.series?.nom ? <span style={{ fontWeight: 400, color: 'var(--encre-pale)' }}> · {t.series.nom}</span> : null}</div>

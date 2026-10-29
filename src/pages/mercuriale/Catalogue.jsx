@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { ShoppingCart, X, Check, Minus, Plus, LogOut, Printer } from 'lucide-react'
-import { htmlBonDeLivraison, imprimerHtml } from '../../lib/bonDeLivraison'
+import { htmlBonDeLivraison, imprimerHtml, prixMercu } from '../../lib/bonDeLivraison'
 import { ATELIERS } from '../../lib/ateliers'
 
 // Page publique de commande pour les épiceries. Chaque épicerie se connecte avec l'identifiant
@@ -159,7 +159,7 @@ export default function MercurialeCatalogue() {
   const nbArticles = Object.values(panier).reduce((a, b) => a + b, 0)
   const totalHT = Object.entries(panier).reduce((acc, [id, qty]) => {
     const p = produits.find(p => p.id === id)
-    return acc + (p ? qty * p.prix_ht * p.nombre_par_colis : 0)
+    return acc + (p ? qty * prixMercu(p) * p.nombre_par_colis : 0)
   }, 0)
 
   async function passerCommande() {
@@ -239,7 +239,7 @@ export default function MercurialeCatalogue() {
                           {p.quantite_dispo > 0 && <span style={{ color: 'var(--accent)' }}> · {p.quantite_dispo} dispo</span>}
                         </div>
                         <div style={{ flex: '0 0 110px', textAlign: 'right' }}>
-                          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--encre)' }}>{(p.prix_ht * p.nombre_par_colis).toFixed(2)} €</span>
+                          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--encre)' }}>{(prixMercu(p) * p.nombre_par_colis).toFixed(2)} €</span>
                           <span style={{ fontSize: 10, color: 'var(--encre-pale)' }}> HT/colis</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
@@ -309,7 +309,7 @@ export default function MercurialeCatalogue() {
                 return (
                   <div key={id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderBottom: '1px solid var(--trait-leger)' }}>
                     <span>{p?.nom}{p?.variete ? ` · ${p.variete}` : ''} × {qty} colis</span>
-                    <span style={{ fontWeight: 500 }}>{(qty * (p?.prix_ht || 0) * (p?.nombre_par_colis || 1)).toFixed(2)} €</span>
+                    <span style={{ fontWeight: 500 }}>{(qty * prixMercu(p) * (p?.nombre_par_colis || 1)).toFixed(2)} €</span>
                   </div>
                 )
               })}

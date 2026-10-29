@@ -91,8 +91,10 @@ export default function MercurialeProduits() {
     fetchData()
   }
 
-  async function supprimerProduit(id) {
-    await supabase.from('mercuriale_produits').delete().eq('id', id)
+  async function supprimerProduit(produit) {
+    if (!window.confirm(`Supprimer définitivement le produit « ${produit.nom}${produit.variete ? ' · ' + produit.variete : ''} » ?\n\nPour le retirer seulement du catalogue, utilisez plutôt la case Disponible.`)) return
+    const { error } = await supabase.from('mercuriale_produits').delete().eq('id', produit.id)
+    if (error) alert(`Suppression impossible : ce produit figure sans doute dans des commandes. Rendez-le indisponible à la place.\n(${error.message})`)
     fetchData()
   }
 
@@ -262,7 +264,7 @@ export default function MercurialeProduits() {
                 style={{ padding: '3px 8px', fontSize: 11, border: '1px solid var(--trait)', borderRadius: 0, cursor: 'pointer', background: 'var(--fond)', color: 'var(--encre-douce)' }}>
                 Modifier
               </button>
-              <button onClick={() => supprimerProduit(p.id)}
+              <button onClick={() => supprimerProduit(p)}
                 style={{ padding: '3px 6px', fontSize: 11, border: '1px solid var(--rouge-clair)', borderRadius: 0, cursor: 'pointer', background: 'var(--rouge-pale)', color: 'var(--rouge)' }}>
                 <X size={11} />
               </button>

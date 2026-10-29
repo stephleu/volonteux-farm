@@ -1,7 +1,8 @@
 -- Mercuriale : ateliers (catégories de produits) accessibles à chaque épicerie.
 -- Par défaut tout est accessible ; on décoche dans la page Épiceries.
 -- La règle est appliquée côté base : une épicerie ne peut ni voir ni commander un produit
--- d'un atelier décoché. À coller dans Supabase > SQL Editor, puis « Run ». Peut être relancé.
+-- d'un atelier décoché. À coller dans Supabase > SQL Editor, puis « Run ».
+-- ⚠ Si on le relance, relancer ensuite 2026-10-prix-mercu.sql (qui remplace epicerie_commander).
 
 alter table mercuriale_epiceries
   add column if not exists ateliers text[] not null default '{maraichage,arboriculture,epices}';

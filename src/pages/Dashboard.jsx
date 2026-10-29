@@ -79,8 +79,8 @@ export default function Dashboard() {
           <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--encre)', marginBottom: 10 }}>
             Commandes en cours · {commandes.length}
           </div>
-          {/* Limité à la moitié de la hauteur de l'écran, le reste défile */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: '50vh', overflowY: 'auto' }}>
+          {/* Deux commandes côte à côte (une par moitié d'écran), limité à la moitié de la hauteur, le reste défile */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 340px), calc(50% - 8px)))', gap: 16, alignItems: 'start', maxHeight: '50vh', overflowY: 'auto' }}>
             {commandes.map(commande => (
               <div key={commande.id} style={{ background: 'var(--papier)', border: '1px solid var(--trait)', borderRadius: 0, overflow: 'hidden' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--fond)', borderBottom: '1px solid var(--trait)' }}>

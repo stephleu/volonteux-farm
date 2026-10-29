@@ -33,7 +33,6 @@ export default function Series() {
     rangs: '', espacement_plants: '', date_plantation: '', premiere_recolte: '', derniere_recolte: '',
   }
   const [form, setForm] = useState(formVide)
-  const [fertilisations, setFertilisations] = useState([{ dose_kg_ha: '', semaines_apres_plantation: '' }])
   const [traitements, setTraitements] = useState([{ type_traitement_id: '', semaines_apres_plantation: '' }])
 
   useEffect(() => { fetchData() }, [annee])
@@ -95,14 +94,11 @@ export default function Series() {
     }
     const { data: serie } = await supabase.from('series').insert(payload).select().single()
     if (serie) {
-      const fertis = fertilisations.filter(f => f.dose_kg_ha && f.semaines_apres_plantation)
-      if (fertis.length > 0) await supabase.from('serie_fertilisations').insert(fertis.map(f => ({ ...f, serie_id: serie.id })))
       const traits = traitements.filter(t => t.type_traitement_id && t.semaines_apres_plantation)
       if (traits.length > 0) await supabase.from('serie_traitements').insert(traits.map(t => ({ ...t, serie_id: serie.id })))
     }
     setShowForm(false)
     setForm(formVide)
-    setFertilisations([{ dose_kg_ha: '', semaines_apres_plantation: '' }])
     setTraitements([{ type_traitement_id: '', semaines_apres_plantation: '' }])
     fetchData()
   }
@@ -134,12 +130,6 @@ export default function Series() {
     const { error } = await supabase.from('series').delete().eq('id', id)
     if (error) alert(`Suppression impossible (elle est sans doute placée dans l'assolement ou a des passages prévus) : ${error.message}`)
     fetchData()
-  }
-
-  function updateFerti(i, key, val) {
-    const updated = [...fertilisations]
-    updated[i][key] = val
-    setFertilisations(updated)
   }
 
   function updateTraitement(i, key, val) {
@@ -260,33 +250,9 @@ export default function Series() {
             </div>
           )}
 
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--encre)', marginBottom: 8 }}>Fertilisation</div>
-            {fertilisations.map((f, i) => (
-              <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-                <div style={{ flex: 1 }}>
-                  <input type="number" placeholder="Dose kg/ha" value={f.dose_kg_ha}
-                    onChange={e => updateFerti(i, 'dose_kg_ha', e.target.value)} style={inputStyle} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <select value={f.semaines_apres_plantation} onChange={e => updateFerti(i, 'semaines_apres_plantation', parseInt(e.target.value))} style={inputStyle}>
-                    <option value="">Sem. après plantation</option>
-                    {Array.from({ length: 30 }, (_, j) => j + 1).map(s => <option key={s} value={s}>Sem. +{s}</option>)}
-                  </select>
-                </div>
-                {fertilisations.length > 1 && (
-                  <button onClick={() => setFertilisations(fertilisations.filter((_, j) => j !== i))}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--rouge)' }}><X size={14} /></button>
-                )}
-                {i === fertilisations.length - 1 && (
-                  <button onClick={() => setFertilisations([...fertilisations, { dose_kg_ha: '', semaines_apres_plantation: '' }])}
-                    style={{ background: 'var(--vert-pale)', border: '1px solid var(--vert)', borderRadius: 0, padding: '4px 8px', cursor: 'pointer', color: 'var(--vert-fonce)' }}>
-                    <Plus size={14} />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
+          <p style={{ fontSize: 12, color: 'var(--encre-douce)', margin: '0 0 14px' }}>
+            Fertilisation : la série suit automatiquement le tableau de son légume (page Fertilisation › Tableau par légume).
+          </p>
 
           <div style={{ marginBottom: 14 }}>
             <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--encre)', marginBottom: 8 }}>Traitements</div>

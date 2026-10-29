@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { Tractor } from 'lucide-react'
 import { supabase, chargerTout } from '../lib/supabase'
 import { anneeCourante, semaineIso } from '../lib/dates'
-import { ETAPES, ETAPES_LABELS, etapesFaites, doseFumure, kgFumure } from '../lib/travailSol'
+import { ETAPES, ETAPES_LABELS, etapesFaites, kgFumure } from '../lib/travailSol'
+import { SELECT_PLANS, fumureFond } from '../lib/fertilisation'
 
 // Délai de préparation avant plantation (mêmes règles que le tableau de bord : 5 semaines l'hiver, 3 sinon)
 const semainesPrepa = semaine => (semaine <= 9 || semaine >= 44 ? 5 : 3)
@@ -12,6 +13,7 @@ const JOUR = 86400000
 export default function PlanchesAPreparer() {
   const [cultures, setCultures] = useState([])
   const [travaux, setTravaux] = useState([])
+  const [plans, setPlans] = useState([])
   const [maintenant] = useState(() => Date.now())
 
   useEffect(() => {
@@ -22,11 +24,13 @@ export default function PlanchesAPreparer() {
     const annees = [anneeCourante() - 1, anneeCourante(), anneeCourante() + 1]
     Promise.all([
       chargerTout(() => supabase.from('cultures')
-        .select('id, annee, planche_id, date_plantation, longueur_metres, legumes(nom, fumure_fond_t_ha), planches(numero, blocs(nom))')
+        .select('id, annee, planche_id, legume_id, date_plantation, longueur_metres, legumes(nom), series(semaine_plantation), planches(numero, blocs(nom))')
         .eq('type', 'prevu').gte('date_plantation', du).lte('date_plantation', au).order('date_plantation').order('id')),
       chargerTout(() => supabase.from('travail_sol').select('planche_id, etape, passage, fait, annee').in('annee', annees).order('id')),
-    ]).then(([{ data: c }, { data: t }]) => {
+      supabase.from('plans_ferti').select(SELECT_PLANS),
+    ]).then(([{ data: c }, { data: t }, { data: p }]) => {
       if (!actif) return
+      setPlans(p || [])
       setCultures(c || [])
       setTravaux(t || [])
     })
@@ -58,7 +62,7 @@ export default function PlanchesAPreparer() {
       </div>
       {aPreparer.map(({ c, semaine, semainesAvant, manquantes, cultureDeLaPlanche }) => {
         const granules = manquantes.includes('granules')
-          ? cultureDeLaPlanche.reduce((acc, x) => acc + kgFumure(x.legumes, Number(x.longueur_metres)), 0)
+          ? cultureDeLaPlanche.reduce((acc, x) => acc + kgFumure(fumureFond(plans, x.legume_id, x.series?.semaine_plantation), Number(x.longueur_metres)), 0)
           : 0
         const urgent = semainesAvant <= 1
         return (
@@ -70,7 +74,7 @@ export default function PlanchesAPreparer() {
             <div style={{ fontSize: 11, color: urgent ? 'var(--rouge)' : 'var(--encre-douce)', marginTop: 2 }}>
               Reste : {manquantes.map(e => ETAPES_LABELS[e]).join(', ')}
               {granules > 0 && ` · granulés ${Math.round(granules)} kg`}
-              {manquantes.includes('granules') && cultureDeLaPlanche.every(x => doseFumure(x.legumes) === 0) && ' · pas de granulés pour cette culture'}
+              {manquantes.includes('granules') && cultureDeLaPlanche.every(x => fumureFond(plans, x.legume_id, x.series?.semaine_plantation) === 0) && ' · pas de granulés pour cette culture'}
             </div>
           </div>
         )

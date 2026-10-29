@@ -1,40 +1,40 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
-import { semaineCourante as calculSemaineCourante, anneeCourante } from '../lib/dates'
+import { supabase, chargerTout } from '../lib/supabase'
+import { semaineCourante as calculSemaineCourante, anneeCourante, semaineReelle } from '../lib/dates'
+import { SELECT_PLANS, passagesDeSerie, nomPlan } from '../lib/fertilisation'
 import { Check } from 'lucide-react'
-import AjoutSerie from '../components/AjoutSerie.jsx'
 import FumureFond from '../components/FumureFond.jsx'
+import TableauFerti from '../components/TableauFerti.jsx'
 
 const ANNEE = anneeCourante()
 const ANNEES = [2025, 2026, 2027, 2028]
 
 const SACS_KG = 25
 
+// Les passages ne sont plus saisis série par série : ils viennent du tableau par légume
+// (onglet « Tableau par légume »), appliqué à chaque série de l'année.
 export default function Fertilisation() {
   const [series, setSeries] = useState([])
-  const [fertilisations, setFertilisations] = useState([])
+  const [plans, setPlans] = useState([])
   const [suivis, setSuivis] = useState([])
   const [loading, setLoading] = useState(true)
   const [vue, setVue] = useState('planning')
   const [semaineCourante] = useState(calculSemaineCourante)
   const [annee, setAnnee] = useState(ANNEE)
+  const [version, setVersion] = useState(0)
 
-  useEffect(() => { fetchData() }, [annee])
+  useEffect(() => { fetchData() }, [annee, version])
 
   async function fetchData() {
-    const [{ data: s }, { data: f }, { data: sv }] = await Promise.all([
-      supabase.from('series').select('*, legumes(nom, familles(couleur)), varietes(nom)').eq('annee', annee).order('semaine_plantation'),
-      supabase.from('serie_fertilisations').select('*, series!inner(annee, nom, semaine_plantation, longueur_metres, legumes(nom))').eq('series.annee', annee),
-      supabase.from('suivi_ferti').select('*'),
+    const [{ data: s }, { data: p }, { data: sv }] = await Promise.all([
+      chargerTout(() => supabase.from('series').select('*, legumes(nom, familles(couleur)), varietes(nom)').eq('annee', annee).order('semaine_plantation').order('id')),
+      supabase.from('plans_ferti').select(SELECT_PLANS),
+      chargerTout(() => supabase.from('suivi_passages_ferti').select('*, series!inner(annee)').eq('series.annee', annee).order('id')),
     ])
     setSeries(s || [])
-    setFertilisations(f || [])
+    setPlans(p || [])
     setSuivis(sv || [])
     setLoading(false)
-  }
-
-  function getSemaineFerti(serieSemainePlantation, semainesApres) {
-    return (serieSemainePlantation || 0) + semainesApres
   }
 
   function calculQuantite(longueurMetres, doseKgHa) {
@@ -44,64 +44,32 @@ export default function Fertilisation() {
     return { quantiteKg: quantiteKg.toFixed(1), nbSacs }
   }
 
-  function getSuivi(fertilisationId) {
-    return suivis.find(s => s.plan_ferti_id === fertilisationId)
-  }
+  const getSuivi = passage => suivis.find(s => s.serie_id === passage.serie.id && s.passage_id === passage.passage.id)
 
-  async function toggleFait(ferti) {
-    const suivi = getSuivi(ferti.id)
-    if (suivi) {
-      await supabase.from('suivi_ferti').update({ fait: !suivi.fait, date_reelle: !suivi.fait ? new Date().toISOString().split('T')[0] : null }).eq('id', suivi.id)
-    } else {
-      await supabase.from('suivi_ferti').insert({
-        plan_ferti_id: ferti.id,
-        fait: true,
-        date_reelle: new Date().toISOString().split('T')[0],
-      })
-    }
+  async function toggleFait(passage) {
+    const suivi = getSuivi(passage)
+    const { error } = suivi
+      ? await supabase.from('suivi_passages_ferti').update({ fait: !suivi.fait, date_reelle: !suivi.fait ? new Date().toISOString().split('T')[0] : null }).eq('id', suivi.id)
+      : await supabase.from('suivi_passages_ferti').insert({ serie_id: passage.serie.id, passage_id: passage.passage.id, fait: true, date_reelle: new Date().toISOString().split('T')[0] })
+    if (error) alert(`Enregistrement impossible : ${error.message}`)
     fetchData()
   }
 
-  // Modification d'un passage depuis le planning : { id, dose_kg_ha, semaines_apres_plantation }
-  const [enModif, setEnModif] = useState(null)
-
-  async function enregistrerModif() {
-    const { error } = await supabase.from('serie_fertilisations').update({
-      dose_kg_ha: parseFloat(enModif.dose_kg_ha),
-      semaines_apres_plantation: parseInt(enModif.semaines_apres_plantation),
-    }).eq('id', enModif.id)
-    if (error) return alert(`Modification impossible : ${error.message}`)
-    setEnModif(null)
-    fetchData()
-  }
-
-  async function supprimerPassage(ferti) {
-    if (!window.confirm(`Supprimer ce passage de fertilisation (${ferti.series?.legumes?.nom}, sem. ${ferti.semaineFerti}) ?`)) return
-    await supabase.from('suivi_ferti').delete().eq('plan_ferti_id', ferti.id)
-    const { error } = await supabase.from('serie_fertilisations').delete().eq('id', ferti.id)
-    if (error) return alert(`Suppression impossible : ${error.message}`)
-    setEnModif(null)
-    fetchData()
-  }
-
-  const fertisAvecSemaine = fertilisations.map(f => ({
-    ...f,
-    semaineFerti: getSemaineFerti(f.series?.semaine_plantation, f.semaines_apres_plantation),
-  })).sort((a, b) => a.semaineFerti - b.semaineFerti)
+  const passages = series.flatMap(s => passagesDeSerie(plans, s)).sort((a, b) => a.semaineFerti - b.semaineFerti)
 
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Fertilisation</h1>
-          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>{fertilisations.length} passages planifiés · saison{' '}
+          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>{passages.length} passages planifiés · saison{' '}
             <select value={annee} onChange={e => setAnnee(parseInt(e.target.value))} style={{ fontSize: 13, padding: '2px 6px', border: '1px solid var(--trait)', borderRadius: 0 }}>
               {ANNEES.map(a => <option key={a} value={a}>{a}</option>)}
             </select>
           </p>
         </div>
         <div style={{ display: 'flex', flexShrink: 0, border: '1px solid var(--trait)', borderRadius: 0, overflow: 'hidden' }}>
-          {[['planning', 'Planning'], ['fond', 'Fumure de fond'], ['suivi', 'Suivi']].map(([v, label]) => (
+          {[['planning', 'Planning'], ['tableau', 'Tableau par légume'], ['fond', 'Fumure de fond'], ['suivi', 'Suivi']].map(([v, label]) => (
             <button key={v} onClick={() => setVue(v)} style={{ padding: '7px 14px', fontSize: 13, border: 'none', cursor: 'pointer', background: vue === v ? 'var(--accent)' : 'var(--fond)', color: vue === v ? 'var(--papier)' : 'var(--encre-douce)' }}>
               {label}
             </button>
@@ -109,66 +77,45 @@ export default function Fertilisation() {
         </div>
       </div>
 
-      <div style={{ marginBottom: 16 }}>
-        <AjoutSerie mode="ferti" series={series} onAjout={fetchData} />
-      </div>
-
       {loading && <p style={{ fontSize: 13, color: 'var(--encre-douce)' }}>Chargement...</p>}
 
       {vue === 'planning' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {fertisAvecSemaine.map((ferti, i) => {
-            const suivi = getSuivi(ferti.id)
-            const { quantiteKg, nbSacs } = calculQuantite(ferti.series?.longueur_metres || 50, ferti.dose_kg_ha)
-            const couleur = ferti.series?.legumes?.familles?.couleur || '#9dca9a'
-            const passe = annee < ANNEE || (annee === ANNEE && ferti.semaineFerti < semaineCourante)
+          {passages.map(p => {
+            const suivi = getSuivi(p)
+            const { quantiteKg, nbSacs } = calculQuantite(Number(p.serie.longueur_metres) || 50, p.dose_kg_ha)
+            const couleur = p.serie.legumes?.familles?.couleur || '#9dca9a'
+            const passe = annee < ANNEE || (annee === ANNEE && p.semaineFerti < semaineCourante)
             return (
-              <div key={i} style={{ background: 'var(--papier)', border: `1px solid ${suivi?.fait ? 'var(--vert)' : passe ? 'var(--rouge-clair)' : 'var(--trait-leger)'}`, borderRadius: 0, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 12, opacity: suivi?.fait ? 0.7 : 1 }}>
+              <div key={p.cle} style={{ background: 'var(--papier)', border: `1px solid ${suivi?.fait ? 'var(--vert)' : passe ? 'var(--rouge-clair)' : 'var(--trait-leger)'}`, borderRadius: 0, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 12, opacity: suivi?.fait ? 0.7 : 1 }}>
                 <div style={{ width: 10, height: 10, borderRadius: '50%', background: couleur, flexShrink: 0 }} />
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--encre)' }}>
-                    {ferti.series?.legumes?.nom}
-                    <span style={{ fontSize: 11, color: 'var(--encre-pale)', fontWeight: 400, marginLeft: 6 }}>{ferti.series?.nom}</span>
+                    {p.serie.legumes?.nom}
+                    <span style={{ fontSize: 11, color: 'var(--encre-pale)', fontWeight: 400, marginLeft: 6 }}>{p.serie.nom}</span>
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginTop: 2 }}>
-                    Sem. {ferti.semaineFerti} · {ferti.dose_kg_ha} kg/ha · {quantiteKg} kg · {nbSacs} sac{nbSacs > 1 ? 's' : ''}
+                    Sem. {semaineReelle(annee, p.semaineFerti)} · {p.dose_kg_ha} kg/ha · {quantiteKg} kg · {nbSacs} sac{nbSacs > 1 ? 's' : ''}
+                    {p.plan.variante && ` · ${nomPlan(p.plan)}`}
                   </div>
                 </div>
-                {enModif?.id === ferti.id ? (
-                  <>
-                    <input type="number" min="0" step="any" value={enModif.dose_kg_ha} onChange={e => setEnModif({ ...enModif, dose_kg_ha: e.target.value })}
-                      title="Dose kg/ha" style={{ width: 80, fontSize: 11, padding: '4px 6px', border: '1px solid var(--trait)' }} />
-                    <select value={enModif.semaines_apres_plantation} onChange={e => setEnModif({ ...enModif, semaines_apres_plantation: e.target.value })}
-                      style={{ fontSize: 11, padding: '4px 6px', border: '1px solid var(--trait)' }}>
-                      {Array.from({ length: 31 }, (_, s) => s).map(s => <option key={s} value={s}>Sem. +{s} (sem. {(ferti.series?.semaine_plantation || 0) + s})</option>)}
-                    </select>
-                    <button onClick={enregistrerModif} style={{ padding: '5px 10px', fontSize: 11, border: 'none', background: 'var(--accent)', color: 'var(--papier)', cursor: 'pointer' }}>OK</button>
-                    <button onClick={() => setEnModif(null)} style={{ padding: '5px 10px', fontSize: 11, border: '1px solid var(--trait)', background: 'var(--fond)', cursor: 'pointer' }}>Annuler</button>
-                    <button onClick={() => supprimerPassage(ferti)} style={{ padding: '5px 10px', fontSize: 11, border: '1px solid var(--rouge-clair)', background: 'var(--rouge-pale)', color: 'var(--rouge)', cursor: 'pointer' }}>Supprimer</button>
-                  </>
-                ) : (
-                  <>
-                    <button onClick={() => setEnModif({ id: ferti.id, dose_kg_ha: ferti.dose_kg_ha, semaines_apres_plantation: ferti.semaines_apres_plantation })}
-                      style={{ padding: '5px 10px', fontSize: 11, border: '1px solid var(--trait-leger)', background: 'var(--fond)', color: 'var(--encre-douce)', cursor: 'pointer' }}>
-                      Modifier
-                    </button>
-                    <button onClick={() => toggleFait(ferti)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', fontSize: 11, border: `1px solid ${suivi?.fait ? 'var(--vert)' : 'var(--trait-leger)'}`, borderRadius: 0, cursor: 'pointer', background: suivi?.fait ? 'var(--vert-pale)' : 'var(--fond)', color: suivi?.fait ? 'var(--vert-fonce)' : 'var(--encre-douce)' }}>
-                      <Check size={12} />
-                      {suivi?.fait ? `Fait le ${suivi.date_reelle}` : 'À faire'}
-                    </button>
-                  </>
-                )}
+                <button onClick={() => toggleFait(p)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', fontSize: 11, border: `1px solid ${suivi?.fait ? 'var(--vert)' : 'var(--trait-leger)'}`, borderRadius: 0, cursor: 'pointer', background: suivi?.fait ? 'var(--vert-pale)' : 'var(--fond)', color: suivi?.fait ? 'var(--vert-fonce)' : 'var(--encre-douce)' }}>
+                  <Check size={12} />
+                  {suivi?.fait ? `Fait le ${suivi.date_reelle}` : 'À faire'}
+                </button>
               </div>
             )
           })}
-          {fertisAvecSemaine.length === 0 && !loading && (
+          {passages.length === 0 && !loading && (
             <div style={{ textAlign: 'center', padding: 40, color: 'var(--encre-pale)', fontSize: 13 }}>
-              Aucune fertilisation planifiée — ajoutez des passages dans vos séries
+              Aucun passage : réglez les doses dans l'onglet « Tableau par légume »
             </div>
           )}
         </div>
       )}
+
+      {vue === 'tableau' && <TableauFerti onChange={() => setVersion(v => v + 1)} />}
 
       {vue === 'fond' && <FumureFond annee={annee} />}
 
@@ -177,16 +124,16 @@ export default function Fertilisation() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20 }}>
             <div style={{ background: 'var(--papier)', border: '1px solid var(--trait)', borderRadius: 0, padding: '12px 14px' }}>
               <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 4 }}>Total passages planifiés</div>
-              <div style={{ fontSize: 24, fontWeight: 500, color: 'var(--encre)' }}>{fertilisations.length}</div>
+              <div style={{ fontSize: 24, fontWeight: 500, color: 'var(--encre)' }}>{passages.length}</div>
             </div>
             <div style={{ background: 'var(--papier)', border: '1px solid var(--trait)', borderRadius: 0, padding: '12px 14px' }}>
               <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 4 }}>Passages effectués</div>
-              <div style={{ fontSize: 24, fontWeight: 500, color: 'var(--accent)' }}>{suivis.filter(s => s.fait).length}</div>
+              <div style={{ fontSize: 24, fontWeight: 500, color: 'var(--accent)' }}>{passages.filter(p => getSuivi(p)?.fait).length}</div>
             </div>
             <div style={{ background: 'var(--papier)', border: '1px solid var(--trait)', borderRadius: 0, padding: '12px 14px' }}>
               <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 4 }}>Total sacs saison</div>
               <div style={{ fontSize: 24, fontWeight: 500, color: 'var(--encre)' }}>
-                {fertisAvecSemaine.reduce((acc, f) => acc + calculQuantite(f.series?.longueur_metres || 50, f.dose_kg_ha).nbSacs, 0)}
+                {passages.reduce((acc, p) => acc + calculQuantite(Number(p.serie.longueur_metres) || 50, p.dose_kg_ha).nbSacs, 0)}
               </div>
             </div>
           </div>
@@ -196,8 +143,8 @@ export default function Fertilisation() {
               Détail par série
             </div>
             {series.map(serie => {
-              const fertiserie = fertilisations.filter(f => f.serie_id === serie.id)
-              if (fertiserie.length === 0) return null
+              const passagesSerie = passages.filter(p => p.serie.id === serie.id)
+              if (passagesSerie.length === 0) return null
               const couleur = serie.legumes?.familles?.couleur || '#9dca9a'
               return (
                 <div key={serie.id} style={{ padding: '10px 14px', borderBottom: '1px solid var(--trait-leger)' }}>
@@ -206,14 +153,13 @@ export default function Fertilisation() {
                     <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--encre)' }}>{serie.legumes?.nom}</span>
                     <span style={{ fontSize: 11, color: 'var(--encre-pale)' }}>{serie.nom}</span>
                   </div>
-                  {fertiserie.map((f, i) => {
-                    const suivi = getSuivi(f.id)
-                    const sem = getSemaineFerti(serie.semaine_plantation, f.semaines_apres_plantation)
-                    const { quantiteKg, nbSacs } = calculQuantite(serie.longueur_metres, f.dose_kg_ha)
+                  {passagesSerie.map(p => {
+                    const suivi = getSuivi(p)
+                    const { quantiteKg, nbSacs } = calculQuantite(Number(serie.longueur_metres) || 50, p.dose_kg_ha)
                     return (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0 4px 16px', fontSize: 12 }}>
-                        <span style={{ color: 'var(--encre-pale)', minWidth: 60 }}>Sem. {sem}</span>
-                        <span style={{ color: 'var(--encre-douce)' }}>{f.dose_kg_ha} kg/ha · {quantiteKg} kg · {nbSacs} sac{nbSacs > 1 ? 's' : ''}</span>
+                      <div key={p.cle} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0 4px 16px', fontSize: 12 }}>
+                        <span style={{ color: 'var(--encre-pale)', minWidth: 60 }}>Sem. {semaineReelle(annee, p.semaineFerti)}</span>
+                        <span style={{ color: 'var(--encre-douce)' }}>{p.dose_kg_ha} kg/ha · {quantiteKg} kg · {nbSacs} sac{nbSacs > 1 ? 's' : ''}</span>
                         <span style={{ marginLeft: 'auto', color: suivi?.fait ? 'var(--vert-fonce)' : 'var(--encre-pale)', fontSize: 11 }}>
                           {suivi?.fait ? `✓ Fait le ${suivi.date_reelle}` : '○ À faire'}
                         </span>

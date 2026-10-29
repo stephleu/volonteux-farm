@@ -127,7 +127,6 @@ function FicheLegume({ legume, familles, onSave }) {
     rangs: legume?.rangs || 2,
     espacement_rangs: legume?.espacement_rangs || 70,
     espacement_plants: legume?.espacement_plants || 50,
-    fumure_fond_t_ha: legume?.fumure_fond_t_ha ?? 1,
     notes: legume?.notes || '',
   })
   const [durees, setDurees] = useState([])
@@ -185,7 +184,7 @@ function FicheLegume({ legume, familles, onSave }) {
 
   async function handleSave() {
     setSaving(true)
-    const payload = { ...form, famille_id: form.famille_id || null, fumure_fond_t_ha: form.fumure_fond_t_ha === '' ? 0 : Number(form.fumure_fond_t_ha) }
+    const payload = { ...form, famille_id: form.famille_id || null }
     const { error } = legume
       ? await supabase.from('legumes').update(payload).eq('id', legume.id)
       : await supabase.from('legumes').insert(payload)
@@ -222,7 +221,7 @@ function FicheLegume({ legume, familles, onSave }) {
       {onglet === 'infos' && (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            {[['Nom', 'nom', 'text'], ['Fournisseur', 'fournisseur', 'select'], ['Nombre de rangs', 'rangs', 'number'], ['Famille', 'famille_id', 'famille'], ['Espacement rangs (cm)', 'espacement_rangs', 'number'], ['Espacement plants (cm)', 'espacement_plants', 'number'], ['Fumure de fond aux granulés (t/ha, 0 = aucune)', 'fumure_fond_t_ha', 'number']].map(([label, key, type]) => (
+            {[['Nom', 'nom', 'text'], ['Fournisseur', 'fournisseur', 'select'], ['Nombre de rangs', 'rangs', 'number'], ['Famille', 'famille_id', 'famille'], ['Espacement rangs (cm)', 'espacement_rangs', 'number'], ['Espacement plants (cm)', 'espacement_plants', 'number']].map(([label, key, type]) => (
               <div key={key}>
                 <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 4 }}>{label}</div>
                 {type === 'select' ? (

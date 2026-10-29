@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { semaineCourante, anneeCourante, ecartSemaines, semaineReelle } from '../lib/dates'
 import { Bell, Sprout, Shield } from 'lucide-react'
 import PlanchesAPreparer from '../components/PlanchesAPreparer.jsx'
+import { SELECT_PLANS, passagesDeSerie } from '../lib/fertilisation'
 
 const SEMAINE_COURANTE = semaineCourante()
 const ANNEE = anneeCourante()
@@ -32,20 +33,24 @@ export default function Dashboard() {
       // Années voisines aussi : une plantation de décembre a ses passages en janvier, une plantation
       // de janvier a sa préparation du sol en décembre
       supabase.from('series').select('*, legumes(nom, familles(couleur))').in('annee', ANNEES).order('semaine_plantation'),
-      supabase.from('serie_fertilisations').select('*, series!inner(nom, annee, semaine_plantation, longueur_metres, legumes(nom))').in('series.annee', ANNEES),
+      // Fertilisation : passages du tableau par légume, appliqués à chaque série
+      supabase.from('plans_ferti').select(SELECT_PLANS),
       supabase.from('serie_traitements').select('*, series!inner(nom, annee, semaine_plantation, legumes(nom)), types_traitement(nom)').in('series.annee', ANNEES),
       supabase.from('mercuriale_commandes')
         .select('*, mercuriale_epiceries(nom), mercuriale_lignes(*, mercuriale_produits(nom, variete, unite, nombre_par_colis))')
         .in('statut', ['en_attente', 'confirmee'])
         .order('date_commande', { ascending: false }),
-      supabase.from('suivi_ferti').select('plan_ferti_id').eq('fait', true),
+      supabase.from('suivi_passages_ferti').select('serie_id, passage_id').eq('fait', true),
       supabase.from('suivi_traitements').select('traitement_id').eq('fait', true),
     ])
     // Les passages déjà marqués « fait » ne sont plus des alertes
-    const fertisFaites = new Set((sf || []).map(x => x.plan_ferti_id))
+    const fertisFaites = new Set((sf || []).map(x => `${x.serie_id}:${x.passage_id}`))
     const traitementsFaits = new Set((st || []).map(x => x.traitement_id))
     setSeries(s || [])
-    setFertilisations((f || []).filter(x => !fertisFaites.has(x.id)))
+    // Même forme qu'avant ({ series, dose_kg_ha, semaines_apres_plantation }) pour l'affichage
+    setFertilisations((s || []).flatMap(serie => passagesDeSerie(f || [], serie))
+      .filter(p => !fertisFaites.has(p.cle))
+      .map(p => ({ id: p.cle, series: p.serie, dose_kg_ha: p.dose_kg_ha, semaines_apres_plantation: p.semaines_apres_plantation })))
     setTraitements((t || []).filter(x => !traitementsFaits.has(x.id)))
     setCommandes(c || [])
     setLoading(false)

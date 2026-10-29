@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase, chargerTout } from '../lib/supabase'
 import { anneeCourante, ecartSemaines, semaineReelle } from '../lib/dates'
-import { doseFumure, kgFumure, SAC_GRANULES_KG } from '../lib/travailSol'
+import { kgFumure, SAC_GRANULES_KG } from '../lib/travailSol'
+import { SELECT_PLANS, fumureFond } from '../lib/fertilisation'
 
 // Fumure de fond aux granulés : pour chaque culture placée dans l'assolement, la quantité à épandre
 // sur sa planche lors de la préparation (étape « Granulés » du travail du sol), regroupée par semaine
@@ -9,17 +10,20 @@ import { doseFumure, kgFumure, SAC_GRANULES_KG } from '../lib/travailSol'
 export default function FumureFond({ annee }) {
   const [cultures, setCultures] = useState([])
   const [travaux, setTravaux] = useState([])
+  const [plans, setPlans] = useState([])
   const [voirPassees, setVoirPassees] = useState(false)
 
   useEffect(() => {
     let actif = true
     Promise.all([
       chargerTout(() => supabase.from('cultures')
-        .select('id, annee, date_plantation, longueur_metres, planche_id, series(semaine_plantation), legumes(nom, fumure_fond_t_ha), varietes(nom), planches(numero, blocs(nom))')
+        .select('id, annee, date_plantation, longueur_metres, planche_id, legume_id, series(semaine_plantation), legumes(nom), varietes(nom), planches(numero, blocs(nom))')
         .eq('annee', annee).eq('type', 'prevu').order('date_plantation').order('id')),
       chargerTout(() => supabase.from('travail_sol').select('planche_id, fait').eq('annee', annee).eq('etape', 'granules').order('id')),
-    ]).then(([{ data: c }, { data: t }]) => {
+      supabase.from('plans_ferti').select(SELECT_PLANS),
+    ]).then(([{ data: c }, { data: t }, { data: p }]) => {
       if (!actif) return
+      setPlans(p || [])
       setCultures(c || [])
       setTravaux(t || [])
     })
@@ -28,11 +32,12 @@ export default function FumureFond({ annee }) {
 
   const granulesFaits = new Set(travaux.filter(t => t.fait).map(t => t.planche_id))
   const semaineDe = c => c.series?.semaine_plantation
+  const dose = c => fumureFond(plans, c.legume_id, semaineDe(c))
   const masquerPassees = annee === anneeCourante() && !voirPassees
 
   // Une ligne par planche et par série : une série posée sur plusieurs bouts de planche compte une fois par planche
   const lignes = cultures
-    .filter(c => doseFumure(c.legumes) > 0 && semaineDe(c))
+    .filter(c => semaineDe(c) && dose(c) > 0)
     .filter(c => !masquerPassees || ecartSemaines(annee, semaineDe(c)) >= -1)
   const parSemaine = new Map()
   for (const c of lignes) {
@@ -40,7 +45,7 @@ export default function FumureFond({ annee }) {
     parSemaine.set(sem, [...(parSemaine.get(sem) || []), c])
   }
   const semaines = [...parSemaine.keys()].sort((a, b) => a - b)
-  const totalKg = lignes.reduce((acc, c) => acc + kgFumure(c.legumes, Number(c.longueur_metres)), 0)
+  const totalKg = lignes.reduce((acc, c) => acc + kgFumure(dose(c), Number(c.longueur_metres)), 0)
 
   const nomPlanche = c => `${c.planches?.blocs?.nom}-${String(c.planches?.numero).padStart(2, '0')}`
 
@@ -59,7 +64,7 @@ export default function FumureFond({ annee }) {
         )}
       </div>
       <p style={{ fontSize: 12, color: 'var(--encre-douce)', margin: '0 0 12px' }}>
-        Granulés épandus à la préparation de la planche, avant plantation. Dose par légume dans Paramètres › Fiches légumes
+        Granulés épandus à la préparation de la planche, avant plantation. Dose par légume dans l'onglet « Tableau par légume »
         (carotte, choux, poireaux et courges : 0, leurs granulés sont prévus en cours de culture ou ils n'en ont pas).
         « Fait » = étape Granulés cochée sur la planche dans Travail du sol.
       </p>
@@ -67,7 +72,7 @@ export default function FumureFond({ annee }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {semaines.map(sem => {
           const liste = parSemaine.get(sem)
-          const kg = liste.reduce((acc, c) => acc + kgFumure(c.legumes, Number(c.longueur_metres)), 0)
+          const kg = liste.reduce((acc, c) => acc + kgFumure(dose(c), Number(c.longueur_metres)), 0)
           return (
             <div key={sem} style={{ background: 'var(--papier)', border: '1px solid var(--trait)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 14px', background: 'var(--fond)', borderBottom: '1px solid var(--trait)', fontSize: 13 }}>
@@ -80,8 +85,8 @@ export default function FumureFond({ annee }) {
                   <div key={c.id} style={{ display: 'grid', gridTemplateColumns: '80px 1fr 110px 90px 70px', gap: 10, alignItems: 'center', padding: '5px 14px', fontSize: 12, borderBottom: '1px solid var(--trait-leger)' }}>
                     <strong>{nomPlanche(c)}</strong>
                     <span>{c.legumes?.nom}{c.varietes?.nom ? ` · ${c.varietes.nom}` : ''} · {Number(c.longueur_metres)} m</span>
-                    <span style={{ color: 'var(--encre-douce)' }}>{doseFumure(c.legumes)} t/ha</span>
-                    <span style={{ textAlign: 'right' }}>{kgFumure(c.legumes, Number(c.longueur_metres)).toFixed(1).replace('.', ',')} kg</span>
+                    <span style={{ color: 'var(--encre-douce)' }}>{dose(c)} t/ha</span>
+                    <span style={{ textAlign: 'right' }}>{kgFumure(dose(c), Number(c.longueur_metres)).toFixed(1).replace('.', ',')} kg</span>
                     <span style={{ textAlign: 'right', color: fait ? 'var(--vert-fonce)' : 'var(--encre-pale)' }}>{fait ? '✓ Fait' : 'À faire'}</span>
                   </div>
                 )

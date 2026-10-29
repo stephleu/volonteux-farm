@@ -6,12 +6,12 @@ export const ETAPES_LABELS = {
   granules: 'Granulés', vibroplanche: 'Vibroplanche'
 }
 
-// Fumure de fond aux granulés (étape « Granulés ») : dose du légume en t/ha, 1 t/ha si non réglée
+// Fumure de fond aux granulés (étape « Granulés ») : dose en t/ha donnée par le tableau des
+// fertilisations (voir lib/fertilisation.js, fumureFond)
 export const LARGEUR_PLANCHE_M = 1.4
 export const SAC_GRANULES_KG = 25
-export const doseFumure = legume => (legume?.fumure_fond_t_ha ?? 1)
 // t/ha × surface (m²) : 1 t/ha = 0,1 kg/m²
-export const kgFumure = (legume, longueurMetres) => doseFumure(legume) * 0.1 * longueurMetres * LARGEUR_PLANCHE_M
+export const kgFumure = (doseTHa, longueurMetres) => doseTHa * 0.1 * longueurMetres * LARGEUR_PLANCHE_M
 
 // Étapes (1er passage) faites sur une planche, d'après les lignes travail_sol de l'année
 export const etapesFaites = (travaux, plancheId) =>

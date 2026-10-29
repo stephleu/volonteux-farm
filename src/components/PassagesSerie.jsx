@@ -36,7 +36,7 @@ export default function PassagesSerie({ serie, typesTraitement }) {
 
   const semaine = sem => `sem. +${sem} (sem. ${(serie.semaine_plantation || 0) + sem})`
   const ligne = { display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, padding: '4px 8px', border: '1px solid var(--trait-leger)', marginBottom: 4 }
-  const plan = planPour(plans, serie.legume_id, Number(serie.semaine_plantation))
+  const plan = planPour(plans, serie.legume_id, Number(serie.semaine_plantation), serie.variete_id)
   const passages = passagesDeSerie(plans, { ...serie, semaine_plantation: Number(serie.semaine_plantation) })
 
   return (

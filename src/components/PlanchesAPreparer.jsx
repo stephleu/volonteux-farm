@@ -24,7 +24,7 @@ export default function PlanchesAPreparer() {
     const annees = [anneeCourante() - 1, anneeCourante(), anneeCourante() + 1]
     Promise.all([
       chargerTout(() => supabase.from('cultures')
-        .select('id, annee, planche_id, legume_id, date_plantation, longueur_metres, legumes(nom), series(semaine_plantation), planches(numero, blocs(nom))')
+        .select('id, annee, planche_id, legume_id, variete_id, date_plantation, longueur_metres, legumes(nom), series(semaine_plantation), planches(numero, blocs(nom))')
         .eq('type', 'prevu').gte('date_plantation', du).lte('date_plantation', au).order('date_plantation').order('id')),
       chargerTout(() => supabase.from('travail_sol').select('planche_id, etape, passage, fait, annee').in('annee', annees).order('id')),
       supabase.from('ferti_lignes').select(SELECT_PLANS),
@@ -62,7 +62,7 @@ export default function PlanchesAPreparer() {
       </div>
       {aPreparer.map(({ c, semaine, semainesAvant, manquantes, cultureDeLaPlanche }) => {
         const granules = manquantes.includes('granules')
-          ? cultureDeLaPlanche.reduce((acc, x) => acc + kgFumure(fumureFond(plans, x.legume_id, x.series?.semaine_plantation), Number(x.longueur_metres)), 0)
+          ? cultureDeLaPlanche.reduce((acc, x) => acc + kgFumure(fumureFond(plans, x.legume_id, x.series?.semaine_plantation, x.variete_id), Number(x.longueur_metres)), 0)
           : 0
         const urgent = semainesAvant <= 1
         return (
@@ -74,7 +74,7 @@ export default function PlanchesAPreparer() {
             <div style={{ fontSize: 11, color: urgent ? 'var(--rouge)' : 'var(--encre-douce)', marginTop: 2 }}>
               Reste : {manquantes.map(e => ETAPES_LABELS[e]).join(', ')}
               {granules > 0 && ` · granulés ${Math.round(granules)} kg`}
-              {manquantes.includes('granules') && cultureDeLaPlanche.every(x => fumureFond(plans, x.legume_id, x.series?.semaine_plantation) === 0) && ' · pas de granulés pour cette culture'}
+              {manquantes.includes('granules') && cultureDeLaPlanche.every(x => fumureFond(plans, x.legume_id, x.series?.semaine_plantation, x.variete_id) === 0) && ' · pas de granulés pour cette culture'}
             </div>
           </div>
         )

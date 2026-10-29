@@ -6,6 +6,8 @@ import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 const MOIS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc']
 const SEMAINES_PAR_MOIS = [4, 4, 5, 4, 4, 5, 4, 4, 4, 5, 4, 5]
 const HAUTEUR_MOIS = 24
+// Fenêtre de 6 mois : pour l'année en cours, elle démarre au mois actuel (au plus tard juillet → décembre)
+const offsetInitial = annee => (annee === anneeCourante() ? Math.min(6, new Date().getMonth()) : 0)
 
 export default function Assolement() {
   const [blocs, setBlocs] = useState([])
@@ -15,7 +17,7 @@ export default function Assolement() {
   const [loading, setLoading] = useState(true)
   const [vue, setVue] = useState('champ')
   const [ouverts, setOuverts] = useState({})
-  const [offsetMois, setOffsetMois] = useState(0)
+  const [offsetMois, setOffsetMois] = useState(() => offsetInitial(anneeCourante()))
   const [dragSerie, setDragSerie] = useState(null)
   const [showSeries, setShowSeries] = useState(false)
   const [cultureSelectionnee, setCultureSelectionnee] = useState(null)
@@ -360,7 +362,7 @@ export default function Assolement() {
         <div ref={barreRef} style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, position: 'sticky', top: 0, background: 'var(--fond)', padding: '10px 0', zIndex: 10 }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
             <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Assolement</h1>
-            <select value={annee} onChange={e => setAnnee(parseInt(e.target.value))}
+            <select value={annee} onChange={e => { const a = parseInt(e.target.value); setAnnee(a); setOffsetMois(offsetInitial(a)) }}
               style={{ fontSize: 13, padding: '5px 10px', border: '1px solid var(--trait)', borderRadius: 0 }}>
               {[2024, 2025, 2026, 2027, 2028].map(a => <option key={a} value={a}>{a}</option>)}
             </select>

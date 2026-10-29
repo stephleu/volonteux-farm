@@ -16,3 +16,12 @@ export const kgFumure = (doseTHa, longueurMetres) => doseTHa * 0.1 * longueurMet
 // Étapes (1er passage) faites sur une planche, d'après les lignes travail_sol de l'année
 export const etapesFaites = (travaux, plancheId) =>
   ETAPES.filter(e => travaux.some(t => t.planche_id === plancheId && t.etape === e && t.passage === 1 && t.fait))
+
+// Nom affiché d'un bloc : « Serre 5 » ou « Bloc C »
+export const nomLieu = bloc => !bloc ? 'Pas encore placé'
+  : bloc.type === 'serre' ? (/^serre/i.test(bloc.nom) ? bloc.nom : `Serre ${bloc.nom}`)
+  : `Bloc ${bloc.nom}`
+
+// Libellé d'une semaine du tableau de bord (0 = semaine en cours)
+export const libelleSemaine = (ecart, semaine) =>
+  ecart <= 0 ? `Cette semaine · sem. ${semaine}` : ecart === 1 ? `Semaine prochaine · sem. ${semaine}` : `Dans ${ecart} semaines · sem. ${semaine}`

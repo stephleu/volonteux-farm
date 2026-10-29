@@ -42,3 +42,15 @@ export function getSaison(semaine) {
   if (semaine <= 39) return 'ete'
   return 'automne'
 }
+
+// Nombre de semaines entre la semaine en cours et celle d'une date 'AAAA-MM-JJ' (négatif = passé)
+export function ecartDate(date) {
+  const d = new Date(date + 'T12:00:00Z')
+  const lundi = d.getTime() - ((d.getUTCDay() + 6) % 7) * 86400000
+  const a = new Date()
+  const lundiActuel = Date.UTC(a.getFullYear(), a.getMonth(), a.getDate(), 12) - ((a.getDay() + 6) % 7) * 86400000
+  return Math.round((lundi - lundiActuel) / (7 * 86400000))
+}
+
+// Numéro de la semaine située `ecart` semaines après la semaine en cours
+export const semaineDans = ecart => semaineIso(new Date(Date.now() + ecart * 7 * 86400000))

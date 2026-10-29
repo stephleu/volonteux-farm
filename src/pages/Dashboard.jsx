@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { semaineCourante, anneeCourante, ecartSemaines, semaineReelle } from '../lib/dates'
-import { Bell, Sprout, Shield } from 'lucide-react'
+import { Bell, Shield } from 'lucide-react'
 import PlanchesAPreparer from '../components/PlanchesAPreparer.jsx'
-import { SELECT_PLANS, passagesDeSerie } from '../lib/fertilisation'
+import FertilisationsAFaire from '../components/FertilisationsAFaire.jsx'
 
 const SEMAINE_COURANTE = semaineCourante()
 const ANNEE = anneeCourante()
@@ -21,7 +21,6 @@ function getSemainesPrepa(semaine) {
 
 export default function Dashboard() {
   const [series, setSeries] = useState([])
-  const [fertilisations, setFertilisations] = useState([])
   const [traitements, setTraitements] = useState([])
   const [commandes, setCommandes] = useState([])
   const [loading, setLoading] = useState(true)
@@ -29,28 +28,20 @@ export default function Dashboard() {
   useEffect(() => { fetchData() }, [])
 
   async function fetchData() {
-    const [{ data: s }, { data: f }, { data: t }, { data: c }, { data: sf }, { data: st }] = await Promise.all([
+    const [{ data: s }, { data: t }, { data: c }, { data: st }] = await Promise.all([
       // Années voisines aussi : une plantation de décembre a ses passages en janvier, une plantation
       // de janvier a sa préparation du sol en décembre
       supabase.from('series').select('*, legumes(nom, familles(couleur))').in('annee', ANNEES).order('semaine_plantation'),
-      // Fertilisation : passages du tableau par légume, appliqués à chaque série
-      supabase.from('ferti_lignes').select(SELECT_PLANS),
       supabase.from('serie_traitements').select('*, series!inner(nom, annee, semaine_plantation, legumes(nom)), types_traitement(nom)').in('series.annee', ANNEES),
       supabase.from('mercuriale_commandes')
         .select('*, mercuriale_epiceries(nom), mercuriale_lignes(*, mercuriale_produits(nom, variete, unite, nombre_par_colis))')
         .in('statut', ['en_attente', 'confirmee'])
         .order('date_commande', { ascending: false }),
-      supabase.from('ferti_suivi').select('serie_id, passage_id').eq('fait', true),
       supabase.from('suivi_traitements').select('traitement_id').eq('fait', true),
     ])
     // Les passages déjà marqués « fait » ne sont plus des alertes
-    const fertisFaites = new Set((sf || []).map(x => `${x.serie_id}:${x.passage_id}`))
     const traitementsFaits = new Set((st || []).map(x => x.traitement_id))
     setSeries(s || [])
-    // Même forme qu'avant ({ series, dose_kg_ha, semaines_apres_plantation }) pour l'affichage
-    setFertilisations((s || []).flatMap(serie => passagesDeSerie(f || [], serie))
-      .filter(p => !fertisFaites.has(p.cle))
-      .map(p => ({ id: p.cle, series: p.serie, dose_kg_ha: p.dose_kg_ha, semaines_apres_plantation: p.semaines_apres_plantation })))
     setTraitements((t || []).filter(x => !traitementsFaits.has(x.id)))
     setCommandes(c || [])
     setLoading(false)
@@ -64,19 +55,12 @@ export default function Dashboard() {
     return debutPrepa >= -1 && debutPrepa <= 1
   })
 
-  // Mêmes fenêtres que les anciens onglets Alertes des pages Fertilisation et Traitements
-  const alertesFerti = fertilisations.filter(f => {
-    const e = ecart(f.series, f.semaines_apres_plantation)
-    return e >= -1 && e <= 3
-  })
-
   // Traitements : aussi ceux en retard (jusqu'à 12 semaines), tant qu'ils ne sont pas marqués faits
   const alertesTraitement = traitements.filter(t => {
     const e = ecart(t.series, t.semaines_apres_plantation)
     return e >= -12 && e <= 3
   })
 
-  const totalAlertes = alertesPrepa.length + alertesFerti.length + alertesTraitement.length
   const statutLabel = { en_attente: 'En attente', confirmee: 'Confirmée' }
   const statutCouleur = { en_attente: '#fff09e', confirmee: '#9dca9a' }
 
@@ -95,7 +79,8 @@ export default function Dashboard() {
           <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--encre)', marginBottom: 10 }}>
             Commandes en cours · {commandes.length}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {/* Limité à la moitié de la hauteur de l'écran, le reste défile */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: '50vh', overflowY: 'auto' }}>
             {commandes.map(commande => (
               <div key={commande.id} style={{ background: 'var(--papier)', border: '1px solid var(--trait)', borderRadius: 0, overflow: 'hidden' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--fond)', borderBottom: '1px solid var(--trait)' }}>
@@ -165,22 +150,8 @@ export default function Dashboard() {
         </div>
 
         <div>
-          {alertesFerti.length > 0 && (
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                <Sprout size={14} color="#3f7a3b" />
-                <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--encre)' }}>Fertilisations à faire</span>
-              </div>
-              {alertesFerti.map((f, i) => (
-                <div key={i} style={{ padding: '9px 12px', background: 'var(--vert-pale)', border: '1px solid var(--vert)', borderRadius: 0, marginBottom: 6 }}>
-                  <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--encre)' }}>{f.series?.legumes?.nom}</div>
-                  <div style={{ fontSize: 11, color: 'var(--encre-douce)' }}>
-                    Sem. {semaine(f.series, f.semaines_apres_plantation)} · {f.dose_kg_ha} kg/ha
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Granulés à épandre : par semaine, serre ou bloc, planches, kilos et sacs */}
+          <FertilisationsAFaire />
 
           {alertesTraitement.length > 0 && (
             <div style={{ marginBottom: 14 }}>
@@ -203,9 +174,9 @@ export default function Dashboard() {
             </div>
           )}
 
-          {alertesFerti.length === 0 && alertesTraitement.length === 0 && !loading && (
+          {alertesTraitement.length === 0 && !loading && (
             <div style={{ background: 'var(--vert-pale)', border: '1px solid var(--vert)', borderRadius: 0, padding: 16, fontSize: 13, color: 'var(--vert-fonce)' }}>
-              ✓ Aucune fertilisation ni traitement urgent
+              ✓ Aucun traitement urgent
             </div>
           )}
         </div>

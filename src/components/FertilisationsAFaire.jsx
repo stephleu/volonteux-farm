@@ -19,7 +19,7 @@ export default function FertilisationsAFaire() {
     let actif = true
     const annees = [anneeCourante() - 1, anneeCourante(), anneeCourante() + 1]
     Promise.all([
-      chargerTout(() => supabase.from('series').select('id, annee, legume_id, variete_id, semaine_plantation, longueur_metres').in('annee', annees).order('id')),
+      chargerTout(() => supabase.from('series').select('id, annee, legume_id, variete_id, semaine_plantation, longueur_metres, legumes(nom)').in('annee', annees).order('id')),
       supabase.from('ferti_lignes').select(SELECT_PLANS),
       chargerTout(() => supabase.from('ferti_suivi').select('serie_id, passage_id').eq('fait', true).order('id')),
       chargerTout(() => supabase.from('cultures').select('serie_id, planche_id, longueur_metres, planches(blocs(nom, type))').in('annee', annees).eq('type', 'prevu').order('id')),
@@ -55,16 +55,18 @@ export default function FertilisationsAFaire() {
     if (!serie.semaine_plantation) continue
     // Planches de la série ; à défaut (série pas encore placée), la série seule, sans bloc
     const planches = culturesDe.get(serie.id) || [{ planche_id: `serie-${serie.id}`, longueur_metres: serie.longueur_metres || 50, planches: null }]
+    // Série pas encore placée : on affiche le légume (« Tomate - non placé »)
+    const lieuDe = c => (c.planches ? nomLieu(c.planches.blocs) : `${serie.legumes?.nom || 'Série'} - non placé`)
     const fond = fumureFond(plans, serie.legume_id, serie.semaine_plantation, serie.variete_id)
     const ecartFond = ecartSemaines(serie.annee, serie.semaine_plantation)
     for (const c of planches) {
       if (granulesFaits.has(`${c.planche_id}:${serie.annee}`)) continue
-      ajouter(ecartFond, nomLieu(c.planches?.blocs), c.planche_id, kgFumure(fond, Number(c.longueur_metres) || 0))
+      ajouter(ecartFond, lieuDe(c), c.planche_id, kgFumure(fond, Number(c.longueur_metres) || 0))
     }
     for (const p of passagesDeSerie(plans, serie)) {
       if (passagesFaits.has(p.cle)) continue
       const ecart = ecartSemaines(serie.annee, p.semaineFerti)
-      for (const c of planches) ajouter(ecart, nomLieu(c.planches?.blocs), c.planche_id, kgPassage(p.dose_kg_ha, Number(c.longueur_metres) || 0))
+      for (const c of planches) ajouter(ecart, lieuDe(c), c.planche_id, kgPassage(p.dose_kg_ha, Number(c.longueur_metres) || 0))
     }
   }
   const semaines = [...parSemaine.entries()].sort((a, b) => a[0] - b[0])

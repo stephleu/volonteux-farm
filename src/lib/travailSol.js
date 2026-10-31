@@ -12,6 +12,15 @@ export const LARGEUR_PLANCHE_M = 1.4
 export const SAC_GRANULES_KG = 25
 // t/ha × surface (m²) : 1 t/ha = 0,1 kg/m²
 export const kgFumure = (doseTHa, longueurMetres) => doseTHa * 0.1 * longueurMetres * LARGEUR_PLANCHE_M
+// Passage en culture : kg/ha × surface (m²) / 10 000
+export const kgPassage = (doseKgHa, longueurMetres) => (doseKgHa * longueurMetres * LARGEUR_PLANCHE_M) / 10000
+export const nbSacs = kg => Math.ceil(kg / SAC_GRANULES_KG)
+// « 3 sacs »
+export const texteSacs = kg => `${nbSacs(kg)} sac${nbSacs(kg) > 1 ? 's' : ''}`
+
+// Délai de préparation du sol avant plantation : 5 semaines pour une plantation d'hiver
+// (jusqu'à la semaine 9, ou à partir de la semaine 44), 3 sinon
+export const semainesPrepa = semaine => (semaine <= 9 || semaine >= 44 ? 5 : 3)
 
 // Étapes (1er passage) faites sur une planche, d'après les lignes travail_sol de l'année
 export const etapesFaites = (travaux, plancheId) =>

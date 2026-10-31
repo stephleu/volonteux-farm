@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { semaineCourante, anneeCourante, ecartSemaines, semaineReelle } from '../lib/dates'
 import { Bell, Shield } from 'lucide-react'
 import PlanchesAPreparer from '../components/PlanchesAPreparer.jsx'
+import { semainesPrepa } from '../lib/travailSol'
 import FertilisationsAFaire from '../components/FertilisationsAFaire.jsx'
 
 const SEMAINE_COURANTE = semaineCourante()
@@ -14,10 +15,6 @@ const ecart = (serie, decalage = 0) => ecartSemaines(serie.annee, (serie.semaine
 // Numéro de semaine affiché, ramené dans la bonne année (sem. 54 de 2026 → sem. 2)
 const semaine = (serie, decalage = 0) => semaineReelle(serie.annee, (serie.semaine_plantation || 0) + decalage)
 
-function getSemainesPrepa(semaine) {
-  if (semaine <= 9 || semaine >= 44) return 5
-  return 3
-}
 
 export default function Dashboard() {
   const [series, setSeries] = useState([])
@@ -51,7 +48,7 @@ export default function Dashboard() {
 
   const alertesPrepa = series.filter(s => {
     if (!s.semaine_plantation) return false
-    const debutPrepa = ecart(s, -getSemainesPrepa(s.semaine_plantation))
+    const debutPrepa = ecart(s, -semainesPrepa(s.semaine_plantation))
     return debutPrepa >= -1 && debutPrepa <= 1
   })
 

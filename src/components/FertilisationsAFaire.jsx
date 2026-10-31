@@ -2,13 +2,11 @@ import { useState, useEffect } from 'react'
 import { Sprout } from 'lucide-react'
 import { supabase, chargerTout } from '../lib/supabase'
 import { anneeCourante, ecartSemaines, semaineDans } from '../lib/dates'
-import { kgFumure, SAC_GRANULES_KG, LARGEUR_PLANCHE_M, nomLieu, libelleSemaine } from '../lib/travailSol'
-import { SELECT_PLANS, fumureFond, passagesDeSerie } from '../lib/fertilisation'
+import { texteSacs, nomLieu, libelleSemaine } from '../lib/travailSol'
+import { SELECT_PLANS, apportsDeSerie } from '../lib/fertilisation'
 
 const SEMAINES_AFFICHEES = 2 // semaine en cours + 2 semaines d'avance
 const RETARD_MAX = 4         // apports non faits des 4 dernières semaines, comptés dans la semaine en cours
-const sacs = kg => Math.ceil(kg / SAC_GRANULES_KG)
-const kgPassage = (doseKgHa, longueurMetres) => (doseKgHa * longueurMetres * LARGEUR_PLANCHE_M) / 10000
 
 // Tableau de bord : granulés à épandre (fumure de fond + passages en culture), par semaine puis par
 // serre ou bloc, avec le nombre de planches, les kilos et les sacs
@@ -54,17 +52,15 @@ export default function FertilisationsAFaire() {
   for (const serie of series) {
     // Seules les séries placées dans l'assolement (avec des planches) sont affichées
     const planches = culturesDe.get(serie.id)
-    if (!serie.semaine_plantation || !planches) continue
-    const fond = fumureFond(plans, serie.legume_id, serie.semaine_plantation, serie.variete_id)
-    const ecartFond = ecartSemaines(serie.annee, serie.semaine_plantation)
-    for (const c of planches) {
-      if (granulesFaits.has(`${c.planche_id}:${serie.annee}`)) continue
-      ajouter(ecartFond, nomLieu(c.planches?.blocs), c.planche_id, kgFumure(fond, Number(c.longueur_metres) || 0))
-    }
-    for (const p of passagesDeSerie(plans, serie)) {
-      if (passagesFaits.has(p.cle)) continue
-      const ecart = ecartSemaines(serie.annee, p.semaineFerti)
-      for (const c of planches) ajouter(ecart, nomLieu(c.planches?.blocs), c.planche_id, kgPassage(p.dose_kg_ha, Number(c.longueur_metres) || 0))
+    if (!planches) continue
+    for (const a of apportsDeSerie(plans, serie)) {
+      // Fond : fait planche par planche (étape Granulés) ; passage : fait pour toute la série
+      if (a.type === 'passage' && passagesFaits.has(a.cle)) continue
+      const ecart = ecartSemaines(serie.annee, a.semaine)
+      for (const c of planches) {
+        if (a.type === 'fond' && granulesFaits.has(`${c.planche_id}:${serie.annee}`)) continue
+        ajouter(ecart, nomLieu(c.planches?.blocs), c.planche_id, a.kg(Number(c.longueur_metres) || 0))
+      }
     }
   }
   const semaines = [...parSemaine.entries()].sort((a, b) => a[0] - b[0])
@@ -90,14 +86,14 @@ export default function FertilisationsAFaire() {
           <div key={ecart} style={{ background: 'var(--vert-pale)', border: '1px solid var(--vert)', marginBottom: 6 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12, fontWeight: 600, color: 'var(--encre)', padding: '6px 12px', borderBottom: '1px solid var(--trait-leger)' }}>
               <span>{libelleSemaine(ecart, semaineDans(ecart))}</span>
-              <span>{Math.round(kgSemaine)} kg · {sacs(kgSemaine)} sac{sacs(kgSemaine) > 1 ? 's' : ''}</span>
+              <span>{Math.round(kgSemaine)} kg · {texteSacs(kgSemaine)}</span>
             </div>
             {liste.map(([lieu, l]) => (
               <div key={lieu} style={{ display: 'grid', gridTemplateColumns: '1fr 90px 70px 60px', gap: 8, fontSize: 12, padding: '4px 12px', color: 'var(--encre)' }}>
                 <span>{lieu}</span>
                 <span style={{ color: 'var(--encre-douce)', textAlign: 'right' }}>{l.planches.size} planche{l.planches.size > 1 ? 's' : ''}</span>
                 <span style={{ textAlign: 'right' }}>{Math.round(l.kg)} kg</span>
-                <span style={{ color: 'var(--encre-douce)', textAlign: 'right' }}>{sacs(l.kg)} sac{sacs(l.kg) > 1 ? 's' : ''}</span>
+                <span style={{ color: 'var(--encre-douce)', textAlign: 'right' }}>{texteSacs(l.kg)}</span>
               </div>
             ))}
           </div>

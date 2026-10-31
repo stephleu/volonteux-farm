@@ -1,5 +1,6 @@
 // Tableau des fertilisations par légume (tables ferti_lignes et ferti_lignes_passages) :
 // chaque série prend la ligne de son légume, choisie selon sa semaine de plantation.
+import { kgFumure, kgPassage } from './travailSol'
 
 // Requête : toutes les lignes du tableau avec leurs passages
 export const SELECT_PLANS = '*, legumes(nom), ferti_lignes_passages(*)'
@@ -35,6 +36,32 @@ export function passagesDeSerie(plans, serie) {
 export function fumureFond(plans, legumeId, semainePlantation, varieteId = null) {
   const plan = planPour(plans, legumeId, semainePlantation, varieteId)
   return plan ? Number(plan.fumure_fond_t_ha) : 1
+}
+
+// Tous les apports de granulés d'une série, d'après le tableau : la fumure de fond (à la préparation,
+// semaine de plantation) puis les passages en culture. `kg(longueur)` donne les kilos pour une longueur.
+export function apportsDeSerie(plans, serie) {
+  if (!serie.semaine_plantation) return []
+  const plan = planPour(plans, serie.legume_id, serie.semaine_plantation, serie.variete_id)
+  const fond = fumureFond(plans, serie.legume_id, serie.semaine_plantation, serie.variete_id)
+  const apports = []
+  if (fond > 0) {
+    apports.push({
+      cle: `${serie.id}:fond`, type: 'fond', serie, plan,
+      semaine: serie.semaine_plantation,
+      dose: `${fond} t/ha de fond`,
+      kg: longueur => kgFumure(fond, longueur),
+    })
+  }
+  for (const p of passagesDeSerie(plans, serie)) {
+    apports.push({
+      cle: p.cle, type: 'passage', serie, plan, passage: p.passage,
+      semaine: p.semaineFerti,
+      dose: `${p.dose_kg_ha} kg/ha à +${p.semaines_apres_plantation} sem.`,
+      kg: longueur => kgPassage(p.dose_kg_ha, longueur),
+    })
+  }
+  return apports
 }
 
 // Nom affiché d'une ligne : « Carotte · primeur »

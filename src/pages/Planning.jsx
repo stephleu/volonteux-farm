@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase, chargerTout } from '../lib/supabase'
-import { semaineCourante as calculSemaineCourante, anneeCourante, getSaison as getSaisonFromSemaine, ecartSemaines, anneeEtSemaine, lundiSemaine } from '../lib/dates'
+import { semaineCourante as calculSemaineCourante, anneeCourante, ecartSemaines, anneeEtSemaine, lundiSemaine } from '../lib/dates'
 import { AlertTriangle } from 'lucide-react'
+import { semainesPrepa } from '../lib/travailSol'
 
 const MOIS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 const ANNEE = anneeCourante()
@@ -27,10 +28,6 @@ function parAnneePuis(liste, cle) {
   return annees
 }
 
-function getSemainesPrepa(semaine) {
-  const saison = getSaisonFromSemaine(semaine)
-  return saison === 'hiver' ? 5 : 3
-}
 
 export default function Planning() {
   const [series, setSeries] = useState([])
@@ -74,7 +71,7 @@ export default function Planning() {
   const libelleSem = s => `Sem. ${s.reel.semaine}${s.reel.annee !== ANNEE ? ` (${s.reel.annee})` : ''}`
 
   const alertes = series.filter(s => {
-    const debutPrepa = s.ecart - getSemainesPrepa(s.semaine_plantation)
+    const debutPrepa = s.ecart - semainesPrepa(s.semaine_plantation)
     return debutPrepa <= 2 && debutPrepa >= -1
   })
 
@@ -126,11 +123,11 @@ export default function Planning() {
           {[...parSemaine.entries()].map(([anneeSem, semaines]) => [
             <SeparateurAnnee key={`annee-${anneeSem}`} annee={anneeSem} />,
             ...[...semaines.entries()].map(([sem, seriesSem]) => {
-            const semainesPrepa = getSemainesPrepa(sem)
-            const semaineDebutPrepa = anneeEtSemaine(anneeSem, sem - semainesPrepa).semaine
+            const delaiPrepa = semainesPrepa(sem)
+            const semaineDebutPrepa = anneeEtSemaine(anneeSem, sem - delaiPrepa).semaine
             // Urgent : plantation à venir et préparation du sol à commencer
             const ecartSem = seriesSem[0].ecart
-            const urgence = ecartSem >= 0 && ecartSem - semainesPrepa <= 1
+            const urgence = ecartSem >= 0 && ecartSem - delaiPrepa <= 1
             const dateStr = lundiSemaine(anneeSem, sem).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', timeZone: 'UTC' })
             const totalPlants = seriesSem.filter(s => s.type === 'plant').reduce((acc, s) => acc + (s.nombre_plants || 0), 0)
             return (
@@ -143,7 +140,7 @@ export default function Planning() {
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     {totalPlants > 0 && <span style={{ fontSize: 11, color: 'var(--encre-douce)' }}>{totalPlants} plants</span>}
-                    <span style={{ fontSize: 11, color: 'var(--encre-pale)' }}>Prépa sol avant sem. {semaineDebutPrepa} ({semainesPrepa} sem.)</span>
+                    <span style={{ fontSize: 11, color: 'var(--encre-pale)' }}>Prépa sol avant sem. {semaineDebutPrepa} ({delaiPrepa} sem.)</span>
                   </div>
                 </div>
                 <div style={{ padding: '8px 14px' }}>
@@ -259,8 +256,8 @@ export default function Planning() {
               ✓ Aucune alerte urgente cette semaine
             </div>
           ) : alertes.map((serie, i) => {
-            const semainesPrepa = getSemainesPrepa(serie.semaine_plantation)
-            const semaineDebutPrepa = anneeEtSemaine(serie.annee, serie.semaine_plantation - semainesPrepa).semaine
+            const delaiPrepa = semainesPrepa(serie.semaine_plantation)
+            const semaineDebutPrepa = anneeEtSemaine(serie.annee, serie.semaine_plantation - delaiPrepa).semaine
             return (
               <div key={i} style={{ display: 'flex', gap: 12, padding: '12px 14px', background: 'var(--jaune-pale)', border: '1px solid var(--jaune)', borderRadius: 0, marginBottom: 8 }}>
                 <AlertTriangle size={16} color="#9a6a00" style={{ flexShrink: 0, marginTop: 1 }} />
@@ -269,7 +266,7 @@ export default function Planning() {
                     {serie.legumes?.nom}{serie.varietes?.nom ? ` · ${serie.varietes.nom}` : ''}
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--encre-douce)' }}>
-                    Plantation semaine {serie.reel.semaine}{serie.reel.annee !== ANNEE ? ` (${serie.reel.annee})` : ''} · Début prépa sol avant semaine {semaineDebutPrepa} ({semainesPrepa} semaines minimum)
+                    Plantation semaine {serie.reel.semaine}{serie.reel.annee !== ANNEE ? ` (${serie.reel.annee})` : ''} · Début prépa sol avant semaine {semaineDebutPrepa} ({delaiPrepa} semaines minimum)
                   </div>
                 </div>
               </div>

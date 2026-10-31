@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase, chargerTout } from '../lib/supabase'
 import { anneeCourante, ecartSemaines, anneeEtSemaine } from '../lib/dates'
-import { SELECT_PLANS, passagesDeSerie, fumureFond, planPour, nomPlan } from '../lib/fertilisation'
-import { kgFumure, SAC_GRANULES_KG } from '../lib/travailSol'
+import { SELECT_PLANS, apportsDeSerie, nomPlan } from '../lib/fertilisation'
+import { nbSacs, texteSacs } from '../lib/travailSol'
 import { Check } from 'lucide-react'
 import TableauFerti from '../components/TableauFerti.jsx'
 
@@ -41,8 +41,6 @@ export default function Fertilisation() {
     setLoading(false)
   }
 
-  const kgPassage = (longueurMetres, doseKgHa) => (doseKgHa * longueurMetres * 1.4) / 10000
-  const sacs = kg => Math.ceil(kg / SAC_GRANULES_KG)
 
   const planchesDe = serie => [...new Set(cultures.filter(c => c.serie_id === serie.id).map(c => c.planche_id))]
   // Granulés cochés dans le travail du sol de l'année de la série
@@ -52,27 +50,14 @@ export default function Fertilisation() {
   const apports = []
   for (const serie of series) {
     const longueur = Number(serie.longueur_metres) || 50
-    const plan = planPour(plans, serie.legume_id, serie.semaine_plantation, serie.variete_id)
-    const fond = fumureFond(plans, serie.legume_id, serie.semaine_plantation, serie.variete_id)
-    if (fond > 0 && serie.semaine_plantation) {
-      const planches = planchesDe(serie)
-      apports.push({
-        cle: `${serie.id}:fond`, type: 'fond', serie, plan, planches,
-        semaine: serie.semaine_plantation,
-        dose: `${fond} t/ha de fond`,
-        kg: kgFumure(fond, longueur),
-        fait: planches.length > 0 && planches.every(id => granulesDe(id, serie.annee)?.fait),
-      })
-    }
-    for (const p of passagesDeSerie(plans, serie)) {
-      const suivi = suivis.find(s => s.serie_id === serie.id && s.passage_id === p.passage.id)
-      apports.push({
-        cle: p.cle, type: 'passage', serie, plan, passage: p.passage, suivi,
-        semaine: p.semaineFerti,
-        dose: `${p.dose_kg_ha} kg/ha à +${p.semaines_apres_plantation} sem.`,
-        kg: kgPassage(longueur, p.dose_kg_ha),
-        fait: !!suivi?.fait,
-      })
+    for (const a of apportsDeSerie(plans, serie)) {
+      if (a.type === 'fond') {
+        const planches = planchesDe(serie)
+        apports.push({ ...a, planches, kg: a.kg(longueur), fait: planches.length > 0 && planches.every(id => granulesDe(id, serie.annee)?.fait) })
+      } else {
+        const suivi = suivis.find(s => s.serie_id === serie.id && s.passage_id === a.passage.id)
+        apports.push({ ...a, suivi, kg: a.kg(longueur), fait: !!suivi?.fait })
+      }
     }
   }
   for (const a of apports) {
@@ -157,7 +142,7 @@ export default function Fertilisation() {
               <div key={`${anneeApports}-${sem}`} style={{ background: 'var(--papier)', border: '1px solid var(--trait)', marginBottom: 4 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '8px 14px', background: 'var(--fond)', borderBottom: '1px solid var(--trait)', fontSize: 13 }}>
                   <strong>Semaine {sem}{liste[0].ecart < 0 ? ' · en retard' : liste[0].ecart === 0 ? ' · cette semaine' : ''}</strong>
-                  <span>{Math.round(kg)} kg · {sacs(kg)} sac{sacs(kg) > 1 ? 's' : ''}{restants ? ` · ${restants} à faire` : ' · tout est fait'}</span>
+                  <span>{Math.round(kg)} kg · {texteSacs(kg)}{restants ? ` · ${restants} à faire` : ' · tout est fait'}</span>
                 </div>
                 {liste.map(a => {
                   const couleur = a.serie.legumes?.familles?.couleur || '#9dca9a'
@@ -208,7 +193,7 @@ export default function Fertilisation() {
             </div>
             <div style={{ background: 'var(--papier)', border: '1px solid var(--trait)', borderRadius: 0, padding: '12px 14px' }}>
               <div style={{ fontSize: 11, color: 'var(--encre-douce)', marginBottom: 4 }}>Granulés sur la saison</div>
-              <div style={{ fontSize: 24, fontWeight: 500, color: 'var(--encre)' }}>{(totalKg / 1000).toFixed(2).replace('.', ',')} t · {sacs(totalKg)} sacs</div>
+              <div style={{ fontSize: 24, fontWeight: 500, color: 'var(--encre)' }}>{(totalKg / 1000).toFixed(2).replace('.', ',')} t · {nbSacs(totalKg)} sacs</div>
             </div>
           </div>
 

@@ -2,21 +2,19 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { Plus, X } from 'lucide-react'
 
-// Panneau « ajouter à une série » : on cherche une série, puis on lui ajoute
-// un ou plusieurs passages de fertilisation (mode 'ferti') ou de traitement (mode 'traitement').
-const LIGNE_VIDE = { ferti: { dose_kg_ha: '', semaines_apres_plantation: '' }, traitement: { type_traitement_id: '', semaines_apres_plantation: '' } }
+// Panneau « ajouter à une série » : on cherche une série, puis on lui ajoute un ou plusieurs
+// traitements. (Les fertilisations viennent du tableau par légume, voir TableauFerti.)
+const LIGNE_VIDE = { type_traitement_id: '', semaines_apres_plantation: '' }
 
 // `serieFixe` : série déjà choisie (formulaire de modification d'une série), pas de recherche.
-export default function AjoutSerie({ mode, series = [], typesTraitement = [], onAjout, serieFixe = null }) {
+export default function AjoutTraitement({ series = [], typesTraitement = [], onAjout, serieFixe = null }) {
   const [ouvert, setOuvert] = useState(!!serieFixe)
   const [recherche, setRecherche] = useState('')
   const [serie, setSerie] = useState(serieFixe)
-  const [lignes, setLignes] = useState([LIGNE_VIDE[mode]])
+  const [lignes, setLignes] = useState([LIGNE_VIDE])
   const [envoi, setEnvoi] = useState(false)
 
-  const estFerti = mode === 'ferti'
-  const table = estFerti ? 'serie_fertilisations' : 'serie_traitements'
-  const lignesValides = lignes.filter(l => l.semaines_apres_plantation !== '' && (estFerti ? l.dose_kg_ha : l.type_traitement_id))
+  const lignesValides = lignes.filter(l => l.semaines_apres_plantation !== '' && l.type_traitement_id)
 
   const q = recherche.trim().toLowerCase()
   const resultats = q
@@ -27,7 +25,7 @@ export default function AjoutSerie({ mode, series = [], typesTraitement = [], on
     setOuvert(!!serieFixe)
     setRecherche('')
     setSerie(serieFixe)
-    setLignes([LIGNE_VIDE[mode]])
+    setLignes([LIGNE_VIDE])
   }
 
   function modifierLigne(i, cle, valeur) {
@@ -36,10 +34,10 @@ export default function AjoutSerie({ mode, series = [], typesTraitement = [], on
 
   async function enregistrer() {
     setEnvoi(true)
-    const { error } = await supabase.from(table).insert(lignesValides.map(l => ({
+    const { error } = await supabase.from('serie_traitements').insert(lignesValides.map(l => ({
       serie_id: serie.id,
       semaines_apres_plantation: parseInt(l.semaines_apres_plantation),
-      ...(estFerti ? { dose_kg_ha: parseFloat(l.dose_kg_ha) } : { type_traitement_id: l.type_traitement_id }),
+      type_traitement_id: l.type_traitement_id,
     })))
     setEnvoi(false)
     if (error) {
@@ -55,7 +53,7 @@ export default function AjoutSerie({ mode, series = [], typesTraitement = [], on
   if (!ouvert) {
     return (
       <button onClick={() => setOuvert(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: 'var(--papier)', border: 'none', borderRadius: 0, padding: '8px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 500, flexShrink: 0 }}>
-        <Plus size={14} /> {estFerti ? 'Ajouter une fertilisation' : 'Ajouter un traitement'}
+        <Plus size={14} /> Ajouter un traitement
       </button>
     )
   }
@@ -64,7 +62,7 @@ export default function AjoutSerie({ mode, series = [], typesTraitement = [], on
     <div style={serieFixe ? {} : { background: 'var(--papier)', border: '1px solid var(--trait)', padding: 16, marginBottom: 16 }}>
       {!serieFixe && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <span style={{ fontSize: 14, fontWeight: 700 }}>{estFerti ? 'Ajouter des fertilisations' : 'Ajouter des traitements'} à une série</span>
+          <span style={{ fontSize: 14, fontWeight: 700 }}>Ajouter des traitements à une série</span>
           <button onClick={fermer} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--encre-pale)' }}><X size={16} /></button>
         </div>
       )}
@@ -93,14 +91,10 @@ export default function AjoutSerie({ mode, series = [], typesTraitement = [], on
           {lignes.map((l, i) => (
             <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
               <div style={{ flex: 2 }}>
-                {estFerti ? (
-                  <input type="number" min="0" step="any" placeholder="Dose kg/ha" value={l.dose_kg_ha} onChange={e => modifierLigne(i, 'dose_kg_ha', e.target.value)} style={champ} />
-                ) : (
-                  <select value={l.type_traitement_id} onChange={e => modifierLigne(i, 'type_traitement_id', e.target.value)} style={champ}>
-                    <option value="">-- Type de traitement --</option>
-                    {typesTraitement.map(t => <option key={t.id} value={t.id}>{t.nom}</option>)}
-                  </select>
-                )}
+                <select value={l.type_traitement_id} onChange={e => modifierLigne(i, 'type_traitement_id', e.target.value)} style={champ}>
+                  <option value="">-- Type de traitement --</option>
+                  {typesTraitement.map(t => <option key={t.id} value={t.id}>{t.nom}</option>)}
+                </select>
               </div>
               <div style={{ flex: 1 }}>
                 <select value={l.semaines_apres_plantation} onChange={e => modifierLigne(i, 'semaines_apres_plantation', e.target.value)} style={champ}>
@@ -113,7 +107,7 @@ export default function AjoutSerie({ mode, series = [], typesTraitement = [], on
               )}
             </div>
           ))}
-          <button onClick={() => setLignes([...lignes, LIGNE_VIDE[mode]])} style={{ fontSize: 12, background: 'none', border: '1px solid var(--trait)', padding: '4px 10px', cursor: 'pointer', marginBottom: 12 }}>
+          <button onClick={() => setLignes([...lignes, LIGNE_VIDE])} style={{ fontSize: 12, background: 'none', border: '1px solid var(--trait)', padding: '4px 10px', cursor: 'pointer', marginBottom: 12 }}>
             + Un autre passage
           </button>
 

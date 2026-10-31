@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { anneeCourante, ecartSemaines, anneeEtSemaine } from '../lib/dates'
 import { Check } from 'lucide-react'
-import AjoutSerie from '../components/AjoutSerie.jsx'
+import AjoutTraitement from '../components/AjoutTraitement.jsx'
 
 const ANNEE = anneeCourante()
 
@@ -104,7 +104,7 @@ export default function Traitement() {
       </div>
 
       <div style={{ marginBottom: 16 }}>
-        <AjoutSerie mode="traitement" series={series} typesTraitement={typesTraitement} onAjout={fetchData} />
+        <AjoutTraitement series={series} typesTraitement={typesTraitement} onAjout={fetchData} />
       </div>
 
       {loading && <p style={{ fontSize: 13, color: 'var(--encre-douce)' }}>Chargement...</p>}

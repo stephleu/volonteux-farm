@@ -6,4 +6,3 @@ export const ATELIERS = [
   { id: 'epices', nom: 'Épices Volonteux', description: 'Piments, sels et épices' },
 ]
 
-export const nomAtelier = id => ATELIERS.find(a => a.id === id)?.nom || 'Autres'

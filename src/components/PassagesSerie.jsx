@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { X } from 'lucide-react'
-import AjoutSerie from './AjoutSerie.jsx'
+import AjoutTraitement from './AjoutTraitement.jsx'
 import { SELECT_PLANS, planPour, passagesDeSerie, nomPlan } from '../lib/fertilisation'
 
 // Dans la modification d'une série : sa fertilisation (lecture seule, elle vient du tableau par légume)
@@ -58,7 +58,7 @@ export default function PassagesSerie({ serie, typesTraitement }) {
             <button onClick={() => supprimerTraitement(t.id)} title="Supprimer" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--rouge)', padding: 0 }}><X size={13} /></button>
           </div>
         ))}
-        <AjoutSerie mode="traitement" serieFixe={serie} typesTraitement={typesTraitement} onAjout={charger} />
+        <AjoutTraitement serieFixe={serie} typesTraitement={typesTraitement} onAjout={charger} />
       </div>
     </div>
   )

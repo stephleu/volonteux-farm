@@ -82,3 +82,18 @@ th {
 }
 
 ::selection { background: var(--jaune); color: var(--encre); }
+
+/* Téléphone : les mises en page en colonnes passent l'une sous l'autre, les en-têtes vont à la ligne.
+   (Les styles des pages sont écrits dans le code : on les vise par leur attribut style.) */
+@media (max-width: 767px) {
+  main [style*="grid-template-columns: 1fr 1fr"],
+  main [style*="grid-template-columns: repeat(3, 1fr)"],
+  main [style*="grid-template-columns: repeat(4, 1fr)"] {
+    grid-template-columns: 1fr !important;
+  }
+  main [style*="justify-content: space-between"] {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  main h1 { font-size: 20px !important; }
+}

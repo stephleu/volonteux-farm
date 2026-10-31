@@ -27,7 +27,7 @@ export default function Sidebar({ utilisateur }) {
   const nom = meta.nom || meta.full_name || meta.display_name || meta.name || utilisateur?.email
   return (
     <aside style={{
-      width: 230, minWidth: 230, height: '100vh',
+      width: 230, minWidth: 230, height: '100dvh',
       borderRight: '2.5px solid var(--trait)',
       background: 'var(--papier)', display: 'flex', flexDirection: 'column'
     }}>

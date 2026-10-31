@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { supabase, chargerTout } from '../lib/supabase'
 import { semaineCourante as calculSemaineCourante, anneeCourante, ecartSemaines, anneeEtSemaine, lundiSemaine } from '../lib/dates'
 import { AlertTriangle } from 'lucide-react'
 import { semainesPrepa } from '../lib/travailSol'
 import { EnTetePage, Onglets, SeparateurAnnee } from '../components/ui.jsx'
+import { useChargement } from '../lib/useChargement'
 
 const MOIS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 const ANNEE = anneeCourante()
@@ -29,8 +30,6 @@ export default function Planning() {
   const [semaineCourante] = useState(calculSemaineCourante)
   const [voirTout, setVoirTout] = useState(false)
 
-  useEffect(() => { fetchData() }, [])
-
   // Toutes les plantations à venir, toutes années confondues, avec un séparateur par année
   async function fetchData() {
     // Séries déjà placées dans l'assolement (au moins une culture), depuis l'année dernière
@@ -47,6 +46,7 @@ export default function Planning() {
     })).sort((a, b) => a.ecart - b.ecart))
     setLoading(false)
   }
+  useChargement(fetchData)
 
   // Par défaut : à partir de la semaine en cours ; « Voir toute l'année » ajoute les semaines passées de l'année
   const seriesFiltrees = series.filter(s => {

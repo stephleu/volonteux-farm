@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { supabase, chargerTout } from '../lib/supabase'
 import { anneeCourante } from '../lib/dates'
 import { ETAPES, ETAPES_LABELS } from '../lib/travailSol'
 import { EnTetePage, Onglets } from '../components/ui.jsx'
+import { useChargement } from '../lib/useChargement'
 
 const aujourdhui = () => new Date().toISOString().split('T')[0]
 
@@ -19,8 +20,6 @@ export default function TravailSol() {
   // Le travail du sol se refait chaque saison : chaque année a ses propres coches
   const [annee, setAnnee] = useState(anneeCourante)
 
-  useEffect(() => { fetchData() }, [annee])
-
   async function fetchData() {
     const [{ data: b }, { data: p }, { data: t }] = await Promise.all([
       supabase.from('blocs').select('*').order('nom'),
@@ -32,6 +31,7 @@ export default function TravailSol() {
     setTravaux(t || [])
     setLoading(false)
   }
+  useChargement(fetchData, [annee])
 
   function getTravail(plancheId, etape, passage = 1) {
     return travaux.find(t => t.planche_id === plancheId && t.etape === etape && t.passage === passage)

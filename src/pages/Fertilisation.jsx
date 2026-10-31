@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { supabase, chargerTout } from '../lib/supabase'
 import { anneeCourante, ecartSemaines, anneeEtSemaine } from '../lib/dates'
 import { SELECT_PLANS, apportsDeSerie, nomPlan } from '../lib/fertilisation'
@@ -6,6 +6,7 @@ import { nbSacs, texteSacs } from '../lib/travailSol'
 import { Check } from 'lucide-react'
 import TableauFerti from '../components/TableauFerti.jsx'
 import { EnTetePage, Onglets, SeparateurAnnee } from '../components/ui.jsx'
+import { useChargement } from '../lib/useChargement'
 
 const ANNEE = anneeCourante()
 const aujourdhui = () => new Date().toISOString().split('T')[0]
@@ -23,8 +24,6 @@ export default function Fertilisation() {
   const [vue, setVue] = useState('planning')
   const [version, setVersion] = useState(0)
 
-  useEffect(() => { fetchData() }, [version])
-
   async function fetchData() {
     const [{ data: s }, { data: p }, { data: sv }, { data: c }, { data: g }] = await Promise.all([
       chargerTout(() => supabase.from('series').select('*, legumes(nom, familles(couleur)), varietes(nom)').gte('annee', ANNEE - 1).order('semaine_plantation').order('id')),
@@ -41,6 +40,7 @@ export default function Fertilisation() {
     setGranules(g || [])
     setLoading(false)
   }
+  useChargement(fetchData, [version])
 
 
   const planchesDe = serie => [...new Set(cultures.filter(c => c.serie_id === serie.id).map(c => c.planche_id))]

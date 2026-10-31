@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { semaineCourante, anneeCourante, ecartSemaines, semaineReelle } from '../lib/dates'
 import { Bell, Shield } from 'lucide-react'
@@ -6,6 +6,7 @@ import PlanchesAPreparer from '../components/PlanchesAPreparer.jsx'
 import { semainesPrepa } from '../lib/travailSol'
 import FertilisationsAFaire from '../components/FertilisationsAFaire.jsx'
 import { EnTetePage } from '../components/ui.jsx'
+import { useChargement } from '../lib/useChargement'
 
 const SEMAINE_COURANTE = semaineCourante()
 const ANNEE = anneeCourante()
@@ -22,8 +23,6 @@ export default function Dashboard() {
   const [traitements, setTraitements] = useState([])
   const [commandes, setCommandes] = useState([])
   const [loading, setLoading] = useState(true)
-
-  useEffect(() => { fetchData() }, [])
 
   async function fetchData() {
     const [{ data: s }, { data: t }, { data: c }, { data: st }] = await Promise.all([
@@ -44,6 +43,7 @@ export default function Dashboard() {
     setCommandes(c || [])
     setLoading(false)
   }
+  useChargement(fetchData)
 
   const seriesImminentes = series.filter(s => s.semaine_plantation && ecart(s) === 0)
 

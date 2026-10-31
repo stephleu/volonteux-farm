@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { semaineIso, anneeCourante } from '../lib/dates'
 import { Plus, X } from 'lucide-react'
 import PassagesSerie from '../components/PassagesSerie.jsx'
 import { EnTetePage, BoutonAjouter } from '../components/ui.jsx'
+import { useChargement } from '../lib/useChargement'
 
 const FOURNISSEURS = ['Pépinière interne', 'Desbos', 'Pépi', 'agrosemence', 'agrodia', 'valsoleil', 'Payson ferme', 'GIA ail dromois', 'Semis direct']
 const ANNEES = [2025, 2026, 2027, 2028]
@@ -23,7 +24,6 @@ export default function Series() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [filtreNom, setFiltreNom] = useState('')
-  const [legumeSelectionne, setLegumeSelectionne] = useState(null)
   const [serieEnModif, setSerieEnModif] = useState(null)
   const [annee, setAnnee] = useState(anneeCourante)
   // La nouvelle série prend l'année affichée (une date au champ la corrige ensuite)
@@ -36,19 +36,6 @@ export default function Series() {
   const [form, setForm] = useState(formVide)
   const [traitements, setTraitements] = useState([{ type_traitement_id: '', semaines_apres_plantation: '' }])
 
-  useEffect(() => { fetchData() }, [annee])
-
-  useEffect(() => {
-    if (form.legume_id) {
-      fetchVarietes(form.legume_id)
-      const leg = legumes.find(l => l.id === form.legume_id)
-      setLegumeSelectionne(leg || null)
-    } else {
-      setVarietes([])
-      setLegumeSelectionne(null)
-    }
-  }, [form.legume_id])
-
   async function fetchData() {
     const [{ data: s }, { data: l }, { data: t }] = await Promise.all([
       supabase.from('series').select('*, legumes(nom, familles(couleur)), varietes(nom)').eq('annee', annee).order('semaine_plantation'),
@@ -60,11 +47,15 @@ export default function Series() {
     setTypesTraitement(t || [])
     setLoading(false)
   }
+  useChargement(fetchData, [annee])
 
   async function fetchVarietes(legumeId) {
     const { data } = await supabase.from('varietes').select('*').eq('legume_id', legumeId).order('nom')
     setVarietes(data || [])
   }
+  // Variétés du légume choisi dans le formulaire
+  useChargement(() => (form.legume_id ? fetchVarietes(form.legume_id) : setVarietes([])), [form.legume_id])
+  const legumeSelectionne = legumes.find(l => l.id === form.legume_id) || null
 
   function calculNbPlants(longueur, rangs, espacement) {
     if (!rangs || !espacement) return ''

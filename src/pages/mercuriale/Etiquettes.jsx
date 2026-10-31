@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Printer } from 'lucide-react'
+import { useChargement } from '../../lib/useChargement'
 import { jsPDF } from 'jspdf'
 import { EnTetePage } from '../../components/ui.jsx'
 
@@ -9,11 +10,6 @@ export default function MerculialeEtiquettes() {
   const [commandeSelectionnee, setCommandeSelectionnee] = useState('')
   const [loading, setLoading] = useState(true)
   const [logoBase64, setLogoBase64] = useState(null)
-
-  useEffect(() => {
-    fetchData()
-    chargerLogo()
-  }, [])
 
   async function chargerLogo() {
     const img = new Image()
@@ -39,6 +35,8 @@ export default function MerculialeEtiquettes() {
     setCommandes(data || [])
     setLoading(false)
   }
+  useChargement(fetchData)
+  useChargement(chargerLogo)
 
   function genererPDF(commande) {
     const LARGEUR = 99

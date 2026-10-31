@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { anneeCourante, ecartSemaines, anneeEtSemaine } from '../lib/dates'
 import { Check } from 'lucide-react'
 import AjoutTraitement from '../components/AjoutTraitement.jsx'
 import { EnTetePage, Onglets, SeparateurAnnee } from '../components/ui.jsx'
+import { useChargement } from '../lib/useChargement'
 
 const ANNEE = anneeCourante()
 
@@ -16,8 +17,6 @@ export default function Traitement() {
   const [suivis, setSuivis] = useState([])
   const [loading, setLoading] = useState(true)
   const [vue, setVue] = useState('planning')
-
-  useEffect(() => { fetchData() }, [])
 
   async function fetchData() {
     const [{ data: s }, { data: t }, { data: tt }, { data: sv }] = await Promise.all([
@@ -32,6 +31,7 @@ export default function Traitement() {
     setSuivis(sv || [])
     setLoading(false)
   }
+  useChargement(fetchData)
 
   function getSemaineTraitement(serieSemainePlantation, semainesApres) {
     return (serieSemainePlantation || 0) + semainesApres

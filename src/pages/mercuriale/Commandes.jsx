@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Plus, Minus, X, Printer, Mail } from 'lucide-react'
 import { SELECT_COMMANDE, prixLigne, prixMercu, totalCommande, htmlBonDeLivraison, imprimerHtml } from '../../lib/bonDeLivraison'
 import { EnTetePage, BoutonAjouter } from '../../components/ui.jsx'
+import { useChargement } from '../../lib/useChargement'
 
 export default function MerculialeCommandes() {
   const [commandes, setCommandes] = useState([])
@@ -13,8 +14,6 @@ export default function MerculialeCommandes() {
   const [commandeSelectionnee, setCommandeSelectionnee] = useState(null)
   const [form, setForm] = useState({ epicerie_id: '', notes: '' })
   const [lignes, setLignes] = useState([{ produit_id: '', quantite_colis: 1 }])
-
-  useEffect(() => { fetchData() }, [])
 
   async function fetchData() {
     const [{ data: c }, { data: e }, { data: p }] = await Promise.all([
@@ -27,6 +26,7 @@ export default function MerculialeCommandes() {
     setProduits(p || [])
     setLoading(false)
   }
+  useChargement(fetchData)
 
   async function handleSave() {
     const { data: commande, error } = await supabase.from('mercuriale_commandes').insert({

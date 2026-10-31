@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { anneeCourante, getSaison } from '../lib/dates'
+import { useChargement } from '../lib/useChargement'
 
 const ANNEE = anneeCourante()
 const LONGUEUR_DEFAUT = 50
@@ -19,8 +20,6 @@ export default function Reel() {
   const [dragCulture, setDragCulture] = useState(null)
   const [showSidebar, setShowSidebar] = useState(true)
 
-  useEffect(() => { fetchData() }, [])
-
   async function fetchData() {
     const [{ data: b }, { data: p }, { data: c }, { data: s }, { data: l }] = await Promise.all([
       supabase.from('blocs').select('*').order('nom'),
@@ -36,6 +35,7 @@ export default function Reel() {
     setLegumes(l || [])
     setLoading(false)
   }
+  useChargement(fetchData)
 
   async function placerCulture(plancheId, position) {
     if (!dragCulture) return

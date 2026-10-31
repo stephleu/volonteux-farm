@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { EnTetePage, Onglets } from '../components/ui.jsx'
+import { useChargement } from '../lib/useChargement'
 
 const ANNEES = [2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030]
 
@@ -42,23 +43,17 @@ function getCouleur(description) {
 const culturesDe = description => description.split(' · ').filter(c => !/^[A-ZÉ][a-zé]+\/[A-ZÉ][a-zé]+$/.test(c))
 
 export default function Historique() {
-  const [blocs, setBlocs] = useState([])
   const [rotations, setRotations] = useState([])
   const [loading, setLoading] = useState(true)
   const [vue, setVue] = useState('grille')
   const [anneeSelectionnee, setAnneeSelectionnee] = useState(2026)
 
-  useEffect(() => { fetchData() }, [])
-
   async function fetchData() {
-    const [{ data: b }, { data: r }] = await Promise.all([
-      supabase.from('blocs').select('*').order('nom'),
-      supabase.from('rotations_planifiees').select('*, blocs(nom)').order('annee'),
-    ])
-    setBlocs(b || [])
+    const { data: r } = await supabase.from('rotations_planifiees').select('*, blocs(nom)').order('annee')
     setRotations(r || [])
     setLoading(false)
   }
+  useChargement(fetchData)
 
   function getRotation(nomBloc, annee) {
     return rotations.find(r => r.blocs?.nom === nomBloc && r.annee === annee)

@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { X, Pencil, Copy, Mail, RefreshCw } from 'lucide-react'
 import { ATELIERS } from '../../lib/ateliers'
 import { EnTetePage, BoutonAjouter } from '../../components/ui.jsx'
+import { useChargement } from '../../lib/useChargement'
 
 const FORM_VIDE = { nom: '', adresse: '', email: '', identifiant: '', mot_de_passe: '' }
 
@@ -39,13 +40,12 @@ export default function MerculialeEpiceries() {
   const [form, setForm] = useState(FORM_VIDE)
   const [copie, setCopie] = useState(null)
 
-  useEffect(() => { fetchData() }, [])
-
   async function fetchData() {
     const { data } = await supabase.from('mercuriale_epiceries').select('*').order('nom')
     setEpiceries(data || [])
     setLoading(false)
   }
+  useChargement(fetchData)
 
   async function handleSave() {
     const payload = { ...form, identifiant: form.identifiant.trim() || null, mot_de_passe: form.mot_de_passe.trim() || null }

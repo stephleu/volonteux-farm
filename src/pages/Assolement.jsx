@@ -3,6 +3,7 @@ import { supabase, chargerTout } from '../lib/supabase'
 import { anneeCourante } from '../lib/dates'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { Onglets } from '../components/ui.jsx'
+import { useChargement } from '../lib/useChargement'
 
 const MOIS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc']
 const SEMAINES_PAR_MOIS = [4, 4, 5, 4, 4, 5, 4, 4, 4, 5, 4, 5]
@@ -46,8 +47,6 @@ export default function Assolement() {
   const semaineDebut = SEMAINES_PAR_MOIS.slice(0, offsetMois).reduce((a, b) => a + b, 0) + 1
   const semaineFin = SEMAINES_PAR_MOIS.slice(0, offsetMois + 6).reduce((a, b) => a + b, 0)
 
-  useEffect(() => { fetchData() }, [annee])
-
   async function fetchData() {
     const [{ data: b }, { data: p }, { data: s }, { data: c }] = await Promise.all([
       supabase.from('blocs').select('*').order('nom'),
@@ -64,6 +63,7 @@ export default function Assolement() {
     setCultures(c || [])
     setLoading(false)
   }
+  useChargement(fetchData, [annee])
 
   const seriesPlacees = new Set(cultures.map(c => c.serie_id).filter(Boolean))
   const seriesDisponibles = series

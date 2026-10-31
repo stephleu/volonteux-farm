@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { X, Check, Search } from 'lucide-react'
 import { ATELIERS } from '../../lib/ateliers'
 import { EnTetePage, BoutonAjouter } from '../../components/ui.jsx'
+import { useChargement } from '../../lib/useChargement'
 
 export default function MercurialeProduits() {
   const [produits, setProduits] = useState([])
@@ -16,13 +17,12 @@ export default function MercurialeProduits() {
     disponible: true, quantite_dispo: 0,
   })
 
-  useEffect(() => { fetchData() }, [])
-
   async function fetchData() {
     const { data } = await supabase.from('mercuriale_produits').select('*').order('nom')
     setProduits(data || [])
     setLoading(false)
   }
+  useChargement(fetchData)
 
   function calculPrixTTC(ht) {
     return ht ? (parseFloat(ht) * 1.055).toFixed(2) : ''

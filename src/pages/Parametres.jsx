@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { supabase, chargerTout } from '../lib/supabase'
 import { Plus, ChevronRight } from 'lucide-react'
+import { useChargement } from '../lib/useChargement'
 
 // Mêmes groupes que l'Historique : la rotation est définie par groupe de blocs
 const GROUPES_BLOCS = {
@@ -16,8 +17,6 @@ export default function Parametres() {
   const [selected, setSelected] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => { fetchData() }, [])
-
   async function fetchData() {
     const [{ data: l }, { data: f }, { data: b }] = await Promise.all([
       supabase.from('legumes').select('*, familles(nom, couleur)').order('nom'),
@@ -29,6 +28,7 @@ export default function Parametres() {
     setBlocs(b || [])
     setLoading(false)
   }
+  useChargement(fetchData)
 
   const tabs = [
     { id: 'legumes', label: 'Fiches légumes' },
@@ -139,13 +139,6 @@ function FicheLegume({ legume, familles, onSave }) {
   const saisons = ['hiver', 'printemps', 'ete', 'automne']
   const lieux = ['serre', 'exterieur']
 
-  useEffect(() => {
-    if (legume?.id) {
-      fetchDurees()
-      fetchVarietes()
-    }
-  }, [legume?.id])
-
   async function fetchDurees() {
     const { data } = await supabase.from('durees_culture').select('*').eq('legume_id', legume.id)
     setDurees(data || [])
@@ -155,6 +148,12 @@ function FicheLegume({ legume, familles, onSave }) {
     const { data } = await supabase.from('varietes').select('*').eq('legume_id', legume.id).order('nom')
     setVarietes(data || [])
   }
+  useChargement(() => {
+    if (legume?.id) {
+      fetchDurees()
+      fetchVarietes()
+    }
+  }, [legume?.id])
 
   function getDuree(lieu, saison) {
     return durees.find(d => d.lieu === lieu && d.saison === saison)?.duree_semaines || ''
@@ -318,8 +317,6 @@ function GestionAnnees({ blocs }) {
   const [messages, setMessages] = useState([])
   const [rotations, setRotations] = useState([])
 
-  useEffect(() => { fetchRotations() }, [])
-
   async function fetchRotations() {
     const { data } = await supabase
       .from('rotations_planifiees')
@@ -327,6 +324,7 @@ function GestionAnnees({ blocs }) {
       .order('annee')
     setRotations(data || [])
   }
+  useChargement(fetchRotations)
 
   // L'année destination a-t-elle déjà des séries ? (évite de dupliquer deux fois, ou par-dessus un plan généré)
   async function destinationLibre() {

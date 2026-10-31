@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase, chargerTout } from '../lib/supabase'
 import { anneeCourante } from '../lib/dates'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { Onglets } from '../components/ui.jsx'
 
 const MOIS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc']
 const SEMAINES_PAR_MOIS = [4, 4, 5, 4, 4, 5, 4, 4, 4, 5, 4, 5]
@@ -361,18 +362,12 @@ export default function Assolement() {
       <div style={{ flex: 1, overflow: 'auto' }}>
         <div ref={barreRef} style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, position: 'sticky', top: 0, background: 'var(--fond)', padding: '10px 0', zIndex: 10 }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
-            <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Assolement</h1>
+            <h1>Assolement</h1>
             <select value={annee} onChange={e => { const a = parseInt(e.target.value); setAnnee(a); setOffsetMois(offsetInitial(a)) }}
               style={{ fontSize: 13, padding: '5px 10px', border: '1px solid var(--trait)', borderRadius: 0 }}>
               {[2024, 2025, 2026, 2027, 2028].map(a => <option key={a} value={a}>{a}</option>)}
             </select>
-            <div style={{ display: 'flex', flexShrink: 0, border: '1px solid var(--trait)', borderRadius: 0, overflow: 'hidden' }}>
-              {['champ', 'serres'].map(v => (
-                <button key={v} onClick={() => setVue(v)} style={{ padding: '5px 12px', fontSize: 12, border: 'none', cursor: 'pointer', background: vue === v ? 'var(--accent)' : 'var(--fond)', color: vue === v ? 'var(--papier)' : 'var(--encre-douce)' }}>
-                  {v === 'champ' ? 'Plein champ' : 'Serres'}
-                </button>
-              ))}
-            </div>
+            <Onglets petit valeur={vue} onChange={setVue} options={[['champ', 'Plein champ'], ['serres', 'Serres']]} />
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
             <button onClick={() => {

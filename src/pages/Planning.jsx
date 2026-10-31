@@ -3,19 +3,10 @@ import { supabase, chargerTout } from '../lib/supabase'
 import { semaineCourante as calculSemaineCourante, anneeCourante, ecartSemaines, anneeEtSemaine, lundiSemaine } from '../lib/dates'
 import { AlertTriangle } from 'lucide-react'
 import { semainesPrepa } from '../lib/travailSol'
+import { EnTetePage, Onglets, SeparateurAnnee } from '../components/ui.jsx'
 
 const MOIS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 const ANNEE = anneeCourante()
-
-// Séparateur à chaque nouvelle année (même style que Fertilisation et Traitements)
-function SeparateurAnnee({ annee }) {
-  return (
-    <div style={{ marginTop: 10 }}>
-      <div style={{ fontSize: 20, fontWeight: 700, fontStretch: '75%', textTransform: 'uppercase' }}>{annee}</div>
-      <div style={{ height: 6, borderTop: '2px solid var(--trait)', borderBottom: '2px solid var(--trait)', margin: '4px 0 8px' }} />
-    </div>
-  )
-}
 
 // Regroupe des éléments par année puis par clé (semaine ou mois), dans l'ordre où ils arrivent
 function parAnneePuis(liste, cle) {
@@ -80,21 +71,9 @@ export default function Planning() {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Planning plantation</h1>
-          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>
-            {seriesFiltrees.length} séries{voirTout ? ` depuis le début de ${ANNEE}` : ' à venir'}
-          </p>
-        </div>
-        <div style={{ display: 'flex', border: '1px solid var(--trait)', borderRadius: 0, overflow: 'hidden' }}>
-          {[['semaine', 'Par semaine'], ['mois', 'Par mois'], ['fournisseur', 'Fournisseurs'], ['alertes', 'Alertes']].map(([v, label]) => (
-            <button key={v} onClick={() => setVue(v)} style={{ padding: '7px 14px', fontSize: 13, border: 'none', cursor: 'pointer', background: vue === v ? 'var(--accent)' : 'var(--fond)', color: vue === v ? 'var(--papier)' : 'var(--encre-douce)' }}>
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <EnTetePage titre="Planning plantation" marge={16} sousTitre={<>{seriesFiltrees.length} séries{voirTout ? ` depuis le début de ${ANNEE}` : ' à venir'}</>}>
+        <Onglets valeur={vue} onChange={setVue} options={[['semaine', 'Par semaine'], ['mois', 'Par mois'], ['fournisseur', 'Fournisseurs'], ['alertes', 'Alertes']]} />
+      </EnTetePage>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         <select value={filtreFournisseur} onChange={e => setFiltreFournisseur(e.target.value)}

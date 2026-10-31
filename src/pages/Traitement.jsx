@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { anneeCourante, ecartSemaines, anneeEtSemaine } from '../lib/dates'
 import { Check } from 'lucide-react'
 import AjoutTraitement from '../components/AjoutTraitement.jsx'
+import { EnTetePage, Onglets, SeparateurAnnee } from '../components/ui.jsx'
 
 const ANNEE = anneeCourante()
 
@@ -89,19 +90,9 @@ export default function Traitement() {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Traitements phyto</h1>
-          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>{aVenir.filter(t => !getSuivi(t.id)?.fait).length} traitements à venir</p>
-        </div>
-        <div style={{ display: 'flex', border: '1px solid var(--trait)', borderRadius: 0, overflow: 'hidden' }}>
-          {[['planning', 'Planning'], ['suivi', 'Suivi']].map(([v, label]) => (
-            <button key={v} onClick={() => setVue(v)} style={{ padding: '7px 14px', fontSize: 13, border: 'none', cursor: 'pointer', background: vue === v ? 'var(--accent)' : 'var(--fond)', color: vue === v ? 'var(--papier)' : 'var(--encre-douce)' }}>
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <EnTetePage titre="Traitements phyto" sousTitre={`${aVenir.filter(t => !getSuivi(t.id)?.fait).length} traitements à venir`}>
+        <Onglets valeur={vue} onChange={setVue} options={[['planning', 'Planning'], ['suivi', 'Suivi']]} />
+      </EnTetePage>
 
       <div style={{ marginBottom: 16 }}>
         <AjoutTraitement series={series} typesTraitement={typesTraitement} onAjout={fetchData} />
@@ -112,11 +103,7 @@ export default function Traitement() {
       {vue === 'planning' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {annees.map(anneeTraitements => [
-            // Séparateur à chaque nouvelle année
-            <div key={`annee-${anneeTraitements}`} style={{ marginTop: 10 }}>
-              <div style={{ fontSize: 20, fontWeight: 700, fontStretch: '75%', textTransform: 'uppercase' }}>{anneeTraitements}</div>
-              <div style={{ height: 6, borderTop: '2px solid var(--trait)', borderBottom: '2px solid var(--trait)', margin: '4px 0 8px' }} />
-            </div>,
+            <SeparateurAnnee key={`annee-${anneeTraitements}`} annee={anneeTraitements} />,
             ...aVenir.filter(t => t.reel.annee === anneeTraitements).map((traitement, i) => {
             const suivi = getSuivi(traitement.id)
             const couleur = traitement.series?.legumes?.familles?.couleur || '#9dca9a'

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Plus, X, Check, Search } from 'lucide-react'
+import { X, Check, Search } from 'lucide-react'
 import { ATELIERS } from '../../lib/ateliers'
+import { EnTetePage, BoutonAjouter } from '../../components/ui.jsx'
 
 export default function MercurialeProduits() {
   const [produits, setProduits] = useState([])
@@ -128,16 +129,9 @@ export default function MercurialeProduits() {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Produits</h1>
-          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>{produits.length} produits au catalogue</p>
-        </div>
-        <button onClick={() => { resetForm(); setEditProduit(null); setShowForm(true) }}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: 'var(--papier)', border: 'none', borderRadius: 0, padding: '8px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
-          <Plus size={14} /> Nouveau produit
-        </button>
-      </div>
+      <EnTetePage titre="Produits" sousTitre={<>{produits.length} produits au catalogue</>}>
+        <BoutonAjouter onClick={() => { resetForm(); setEditProduit(null); setShowForm(true) }}>Nouveau produit</BoutonAjouter>
+      </EnTetePage>
 
       <div style={{ position: 'relative', marginBottom: 16 }}>
         <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--encre-pale)' }} />

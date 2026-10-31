@@ -94,7 +94,7 @@ export default function Reel() {
       <div style={{ flex: 1, overflow: 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, position: 'sticky', top: 0, background: 'var(--fond)', padding: '10px 0', zIndex: 10 }}>
           <div>
-            <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Plantation réelle {ANNEE}</h1>
+            <h1>Plantation réelle {ANNEE}</h1>
             <p style={{ fontSize: 12, color: 'var(--encre-douce)', marginTop: 2 }}>Positionnez les cultures au mètre près sur chaque planche</p>
           </div>
           <button onClick={() => setShowSidebar(!showSidebar)} style={{ fontSize: 12, padding: '5px 12px', border: '1px solid var(--trait)', borderRadius: 0, cursor: 'pointer', background: showSidebar ? 'var(--accent)' : 'var(--papier)', color: showSidebar ? 'var(--papier)' : 'var(--encre)' }}>

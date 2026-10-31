@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { EnTetePage, Onglets } from '../components/ui.jsx'
 
 const ANNEES = [2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030]
 
@@ -71,19 +72,9 @@ export default function Historique() {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Historique des rotations</h1>
-          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>2021 → 2030</p>
-        </div>
-        <div style={{ display: 'flex', flexShrink: 0, border: '1px solid var(--trait)', borderRadius: 0, overflow: 'hidden' }}>
-          {[['grille', 'Grille'], ['annee', 'Par année'], ['conformite', 'Conformité']].map(([v, label]) => (
-            <button key={v} onClick={() => setVue(v)} style={{ padding: '7px 14px', fontSize: 13, border: 'none', cursor: 'pointer', background: vue === v ? 'var(--accent)' : 'var(--fond)', color: vue === v ? 'var(--papier)' : 'var(--encre-douce)' }}>
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <EnTetePage titre="Historique des rotations" sousTitre="2021 → 2030">
+        <Onglets valeur={vue} onChange={setVue} options={[['grille', 'Grille'], ['annee', 'Par année'], ['conformite', 'Conformité']]} />
+      </EnTetePage>
 
       {loading && <p style={{ fontSize: 13, color: 'var(--encre-douce)' }}>Chargement...</p>}
 

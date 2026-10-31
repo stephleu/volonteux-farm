@@ -40,7 +40,7 @@ export default function Parametres() {
 
   return (
     <div>
-      <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)', marginBottom: 16 }}>Paramètres</h1>
+      <h1 style={{ marginBottom: 16 }}>Paramètres</h1>
       <div style={{ display: 'flex', gap: 0, marginBottom: 20, border: '1px solid var(--trait)', borderRadius: 0, overflow: 'hidden', width: 'fit-content' }}>
         {tabs.map(t => (
           <button key={t.id} onClick={() => { setOnglet(t.id); setSelected(null) }} style={{

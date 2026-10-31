@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Plus, Minus, X, Printer, Mail } from 'lucide-react'
 import { SELECT_COMMANDE, prixLigne, prixMercu, totalCommande, htmlBonDeLivraison, imprimerHtml } from '../../lib/bonDeLivraison'
+import { EnTetePage, BoutonAjouter } from '../../components/ui.jsx'
 
 export default function MerculialeCommandes() {
   const [commandes, setCommandes] = useState([])
@@ -143,16 +144,9 @@ export default function MerculialeCommandes() {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Commandes</h1>
-          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>{commandes.filter(c => c.statut === 'en_attente').length} en attente · {commandes.length} total</p>
-        </div>
-        <button onClick={() => setShowForm(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: 'var(--papier)', border: 'none', borderRadius: 0, padding: '8px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
-          <Plus size={14} /> Nouvelle commande
-        </button>
-      </div>
+      <EnTetePage titre="Commandes" sousTitre={<>{commandes.filter(c => c.statut === 'en_attente').length} en attente · {commandes.length} total</>}>
+        <BoutonAjouter onClick={() => setShowForm(true)}>Nouvelle commande</BoutonAjouter>
+      </EnTetePage>
 
       {showForm && (
         <div style={{ background: 'var(--papier)', border: '1px solid var(--trait)', borderRadius: 0, padding: 20, marginBottom: 16 }}>

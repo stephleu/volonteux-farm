@@ -5,6 +5,7 @@ import { Bell, Shield } from 'lucide-react'
 import PlanchesAPreparer from '../components/PlanchesAPreparer.jsx'
 import { semainesPrepa } from '../lib/travailSol'
 import FertilisationsAFaire from '../components/FertilisationsAFaire.jsx'
+import { EnTetePage } from '../components/ui.jsx'
 
 const SEMAINE_COURANTE = semaineCourante()
 const ANNEE = anneeCourante()
@@ -63,10 +64,7 @@ export default function Dashboard() {
 
   return (
     <div>
-      <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Tableau de bord</h1>
-        <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>Semaine {SEMAINE_COURANTE} · saison {ANNEE}</p>
-      </div>
+      <EnTetePage titre="Tableau de bord" sousTitre={`Semaine ${SEMAINE_COURANTE} · saison ${ANNEE}`} />
 
       {loading && <p style={{ fontSize: 13, color: 'var(--encre-douce)' }}>Chargement...</p>}
 

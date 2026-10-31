@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Printer } from 'lucide-react'
 import { jsPDF } from 'jspdf'
+import { EnTetePage } from '../../components/ui.jsx'
 
 export default function MerculialeEtiquettes() {
   const [commandes, setCommandes] = useState([])
@@ -170,10 +171,7 @@ export default function MerculialeEtiquettes() {
 
   return (
     <div>
-      <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Étiquettes</h1>
-        <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>Génère un PDF 4×2 pouces · une étiquette par colis</p>
-      </div>
+      <EnTetePage titre="Étiquettes" sousTitre="Génère un PDF 4×2 pouces · une étiquette par colis" />
 
       {loading && <p style={{ fontSize: 13, color: 'var(--encre-douce)' }}>Chargement...</p>}
 

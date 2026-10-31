@@ -55,6 +55,8 @@ h1, h2, h3 {
 
 /* Double filet sous les titres de page, comme sur les étiquettes */
 main h1 {
+  font-size: 24px;
+  color: var(--encre);
   padding-bottom: 10px;
   border-bottom: 6px double var(--trait);
   display: inline-block;

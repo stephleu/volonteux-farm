@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Plus, X, Pencil, Copy, Mail, RefreshCw } from 'lucide-react'
+import { X, Pencil, Copy, Mail, RefreshCw } from 'lucide-react'
 import { ATELIERS } from '../../lib/ateliers'
+import { EnTetePage, BoutonAjouter } from '../../components/ui.jsx'
 
 const FORM_VIDE = { nom: '', adresse: '', email: '', identifiant: '', mot_de_passe: '' }
 
@@ -111,18 +112,9 @@ export default function MerculialeEpiceries() {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Épiceries</h1>
-          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>
-            {epiceries.length} épiceries · page de commande : <a href={lienCommande()} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>{lienCommande()}</a>
-          </p>
-        </div>
-        <button onClick={ouvrirNouvelle}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: 'var(--papier)', border: 'none', borderRadius: 0, padding: '8px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
-          <Plus size={14} /> Nouvelle épicerie
-        </button>
-      </div>
+      <EnTetePage titre="Épiceries" sousTitre={<>{epiceries.length} épiceries · page de commande : <a href={lienCommande()} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>{lienCommande()}</a></>}>
+        <BoutonAjouter onClick={ouvrirNouvelle}>Nouvelle épicerie</BoutonAjouter>
+      </EnTetePage>
 
       {showForm && (
         <div style={{ background: 'var(--papier)', border: '1px solid var(--trait)', borderRadius: 0, padding: 20, marginBottom: 16 }}>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase, chargerTout } from '../lib/supabase'
 import { anneeCourante } from '../lib/dates'
 import { ETAPES, ETAPES_LABELS } from '../lib/travailSol'
+import { EnTetePage, Onglets } from '../components/ui.jsx'
 
 const aujourdhui = () => new Date().toISOString().split('T')[0]
 
@@ -85,24 +86,14 @@ export default function TravailSol() {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Travail du sol</h1>
-          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>
-            Suivi des étapes tracteur · saison{' '}
-            <select value={annee} onChange={e => setAnnee(parseInt(e.target.value))} style={{ fontSize: 13, padding: '2px 6px', border: '1px solid var(--trait)', borderRadius: 0 }}>
-              {[2025, 2026, 2027, 2028].map(a => <option key={a} value={a}>{a}</option>)}
-            </select>
-          </p>
-        </div>
-        <div style={{ display: 'flex', border: '1px solid var(--trait)', borderRadius: 0, overflow: 'hidden' }}>
-          {[['bloc', 'Vue par bloc'], ['planche', 'Vue par planche']].map(([v, label]) => (
-            <button key={v} onClick={() => setVue(v)} style={{ padding: '7px 14px', fontSize: 13, border: 'none', cursor: 'pointer', background: vue === v ? 'var(--accent)' : 'var(--fond)', color: vue === v ? 'var(--papier)' : 'var(--encre-douce)' }}>
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <EnTetePage titre="Travail du sol" sousTitre={<>
+        Suivi des étapes tracteur · saison{' '}
+        <select value={annee} onChange={e => setAnnee(parseInt(e.target.value))} style={{ fontSize: 13, padding: '2px 6px', border: '1px solid var(--trait)', borderRadius: 0 }}>
+          {[2025, 2026, 2027, 2028].map(a => <option key={a} value={a}>{a}</option>)}
+        </select>
+      </>}>
+        <Onglets valeur={vue} onChange={setVue} options={[['bloc', 'Vue par bloc'], ['planche', 'Vue par planche']]} />
+      </EnTetePage>
 
       {loading && <p style={{ fontSize: 13, color: 'var(--encre-douce)' }}>Chargement...</p>}
 

@@ -5,6 +5,7 @@ import { SELECT_PLANS, apportsDeSerie, nomPlan } from '../lib/fertilisation'
 import { nbSacs, texteSacs } from '../lib/travailSol'
 import { Check } from 'lucide-react'
 import TableauFerti from '../components/TableauFerti.jsx'
+import { EnTetePage, Onglets, SeparateurAnnee } from '../components/ui.jsx'
 
 const ANNEE = anneeCourante()
 const aujourdhui = () => new Date().toISOString().split('T')[0]
@@ -107,19 +108,9 @@ export default function Fertilisation() {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Fertilisation</h1>
-          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>{aVenir.filter(a => !a.fait).length} apports à venir</p>
-        </div>
-        <div style={{ display: 'flex', flexShrink: 0, border: '1px solid var(--trait)', borderRadius: 0, overflow: 'hidden' }}>
-          {[['planning', 'Planning'], ['tableau', 'Tableau par légume'], ['suivi', 'Suivi']].map(([v, label]) => (
-            <button key={v} onClick={() => setVue(v)} style={{ padding: '7px 14px', fontSize: 13, border: 'none', cursor: 'pointer', background: vue === v ? 'var(--accent)' : 'var(--fond)', color: vue === v ? 'var(--papier)' : 'var(--encre-douce)' }}>
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <EnTetePage titre="Fertilisation" sousTitre={`${aVenir.filter(a => !a.fait).length} apports à venir`}>
+        <Onglets valeur={vue} onChange={setVue} options={[['planning', 'Planning'], ['tableau', 'Tableau par légume'], ['suivi', 'Suivi']]} />
+      </EnTetePage>
 
       {loading && <p style={{ fontSize: 13, color: 'var(--encre-douce)' }}>Chargement...</p>}
 
@@ -130,11 +121,7 @@ export default function Fertilisation() {
             Passages : granulés en cours de culture. Doses dans l'onglet « Tableau par légume ».
           </p>
           {[...parAnnee].map(([anneeApports, semaines]) => [
-            // Séparateur à chaque nouvelle année
-            <div key={`annee-${anneeApports}`} style={{ marginTop: 10 }}>
-              <div style={{ fontSize: 20, fontWeight: 700, fontStretch: '75%', textTransform: 'uppercase' }}>{anneeApports}</div>
-              <div style={{ height: 6, borderTop: '2px solid var(--trait)', borderBottom: '2px solid var(--trait)', margin: '4px 0 8px' }} />
-            </div>,
+            <SeparateurAnnee key={`annee-${anneeApports}`} annee={anneeApports} />,
             ...[...semaines].map(([sem, liste]) => {
             const kg = liste.reduce((acc, a) => acc + a.kg, 0)
             const restants = liste.filter(a => !a.fait).length

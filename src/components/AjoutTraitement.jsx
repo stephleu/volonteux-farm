@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { Plus, X } from 'lucide-react'
+import { X } from 'lucide-react'
+import { BoutonAjouter } from './ui.jsx'
 
 // Panneau « ajouter à une série » : on cherche une série, puis on lui ajoute un ou plusieurs
 // traitements. (Les fertilisations viennent du tableau par légume, voir TableauFerti.)
@@ -52,9 +53,7 @@ export default function AjoutTraitement({ series = [], typesTraitement = [], onA
 
   if (!ouvert) {
     return (
-      <button onClick={() => setOuvert(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: 'var(--papier)', border: 'none', borderRadius: 0, padding: '8px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 500, flexShrink: 0 }}>
-        <Plus size={14} /> Ajouter un traitement
-      </button>
+      <BoutonAjouter onClick={() => setOuvert(true)}>Ajouter un traitement</BoutonAjouter>
     )
   }
 

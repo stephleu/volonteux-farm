@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { semaineIso, anneeCourante } from '../lib/dates'
 import { Plus, X } from 'lucide-react'
 import PassagesSerie from '../components/PassagesSerie.jsx'
+import { EnTetePage, BoutonAjouter } from '../components/ui.jsx'
 
 const FOURNISSEURS = ['Pépinière interne', 'Desbos', 'Pépi', 'agrosemence', 'agrodia', 'valsoleil', 'Payson ferme', 'GIA ail dromois', 'Semis direct']
 const ANNEES = [2025, 2026, 2027, 2028]
@@ -149,20 +150,14 @@ export default function Series() {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--encre)' }}>Séries</h1>
-          <p style={{ fontSize: 13, color: 'var(--encre-douce)', marginTop: 4 }}>
-            {series.length} séries · saison{' '}
-            <select value={annee} onChange={e => setAnnee(parseInt(e.target.value))} style={{ fontSize: 13, padding: '2px 6px', border: '1px solid var(--trait)', borderRadius: 0 }}>
-              {ANNEES.map(a => <option key={a} value={a}>{a}</option>)}
-            </select>
-          </p>
-        </div>
-        <button onClick={() => { setForm(formVide); setShowForm(true) }} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: 'var(--papier)', border: 'none', borderRadius: 0, padding: '8px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 500 }}>
-          <Plus size={14} /> Nouvelle série
-        </button>
-      </div>
+      <EnTetePage titre="Séries" sousTitre={<>
+        {series.length} séries · saison{' '}
+        <select value={annee} onChange={e => setAnnee(parseInt(e.target.value))} style={{ fontSize: 13, padding: '2px 6px', border: '1px solid var(--trait)', borderRadius: 0 }}>
+          {ANNEES.map(a => <option key={a} value={a}>{a}</option>)}
+        </select>
+      </>}>
+        <BoutonAjouter onClick={() => { setForm(formVide); setShowForm(true) }}>Nouvelle série</BoutonAjouter>
+      </EnTetePage>
 
       <input value={filtreNom} onChange={e => setFiltreNom(e.target.value)}
         placeholder="Rechercher par légume, variété..."

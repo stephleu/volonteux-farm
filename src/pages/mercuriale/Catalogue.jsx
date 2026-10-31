@@ -63,6 +63,8 @@ function Connexion({ onConnecte }) {
     setErreur('')
     const { data, error } = await supabase.rpc('epicerie_connexion', { p_identifiant: identifiant, p_mot_de_passe: motDePasse })
     setEnvoi(false)
+    // Trop d'essais ratés sur cet identifiant : la base bloque 15 minutes (voir supabase/2026-10-securite-epiceries.sql)
+    if (error?.message?.includes('Trop de tentatives')) return setErreur('Trop de tentatives : réessayez dans 15 minutes.')
     if (error) return setErreur('Connexion impossible pour le moment. Réessayez dans un instant.')
     if (!data?.length) return setErreur('Identifiant ou mot de passe incorrect.')
     onConnecte({ identifiant: identifiant.trim(), motDePasse, epicerie: data[0] })
@@ -166,7 +168,7 @@ export default function MercurialeCatalogue() {
     if (Object.keys(panier).length === 0) return
     setEnvoi(true)
     // Tout est vérifié côté base : identifiant, mot de passe, prix du catalogue
-    const { error } = await supabase.rpc('epicerie_commander', {
+    const { data: commandeId, error } = await supabase.rpc('epicerie_commander', {
       p_identifiant: acces.identifiant,
       p_mot_de_passe: acces.motDePasse,
       p_lignes: Object.entries(panier).map(([produit_id, quantite_colis]) => ({ produit_id, quantite_colis })),
@@ -174,7 +176,8 @@ export default function MercurialeCatalogue() {
       p_notes: `Livraison : ${LIVRAISONS[livraison].toLowerCase()}`,
     })
     setEnvoi(false)
-    if (error) {
+    // Pas de numéro de commande : accès refusé (mot de passe changé entre-temps)
+    if (error || !commandeId) {
       alert("La commande n'a pas pu être envoyée. Réessayez dans un instant ou contactez la ferme.")
       return
     }
